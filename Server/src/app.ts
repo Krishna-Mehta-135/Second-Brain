@@ -3,6 +3,9 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors"
+import { authRouter } from "./routers/auth.routes";
+import { contentRouter } from "./routers/content.routes";
+import { brainRouter } from "./routers/brain.routes";
 
 const app = express();
 
@@ -19,6 +22,8 @@ app.use(express.json())
 
 
 //Routes
-app.use('/api/v1/auth', authRoutes)
+app.use('/api/v1/auth', authRouter)
+app.use('/api/v1/content', contentRouter)
+app.use('/api/v1/brain', brainRouter)
 
 export {app};
