@@ -163,6 +163,3 @@ We welcome contributions to Second Brain! To contribute:
    git push origin feature-name
    ```
 5. Open a pull request on GitHub.
-
----
-````
