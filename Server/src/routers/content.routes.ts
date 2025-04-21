@@ -2,8 +2,8 @@ import express from "express";
 
 const contentRouter = express.Router();
 
-contentRouter.get("/", );
-contentRouter.post("/create", );
-contentRouter.delete("/", );
+contentRouter.get("/", );  //get all content
+contentRouter.post("/create", );   //create new content
+contentRouter.delete("/", );    //delete a content
 
 export {contentRouter}
