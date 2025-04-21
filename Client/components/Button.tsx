@@ -12,5 +12,5 @@ interface ButtonProps {
 }
 
 const variantStyles = {
-    "Primary" : 
+    // "Primary" : 
 }

@@ -23,4 +23,16 @@ const registerUserSchema = z.object({
                 .toLowerCase(),
 })
 
-export {registerUserSchema}
+const loginUserSchema = z.object({
+    credential :   z
+                    .string()
+                    .min(3, "Email or password is required")
+                    .trim(),
+    password:      z
+                    .string()
+                    .min(8 ,"Password must be 8 characters long")
+                    .max(20 ,"Password must not exceed 20 character")
+                    .trim()
+})
+
+export {registerUserSchema ,loginUserSchema}
