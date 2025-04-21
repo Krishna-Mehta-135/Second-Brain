@@ -22,7 +22,7 @@ const getAllContent = asyncHandler(async (req: Request, res: Response) => {
         .populate("tags","name")
         .sort({ createdAt : -1});
 
-    return res.status(200).json(new ApiResponse(200, content , "Content fetchhed successfully"))
+    return res.status(200).json(new ApiResponse(200, content , "Content fetched successfully"))
 })
 
 const createNewContent = asyncHandler(async (req: Request, res: Response) => {
@@ -39,14 +39,14 @@ const createNewContent = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?._id;
 
     //Create tags if they dont exist
-    const tagIds = []
+    const tagIds: mongoose.Types.ObjectId[] = [];
     if(tags && tags.length > 0){
         for(const tagName of tags){
             let tag = await Tag.findOne({name : tagName})
             if (!tag) {
                 tag = await Tag.create({ name: tagName });
             }
-            tagIds.push(tag._id);
+            tagIds.push(tag._id as mongoose.Types.ObjectId);
         }  
     }
 
