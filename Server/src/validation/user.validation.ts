@@ -4,7 +4,7 @@ const registerUserSchema = z.object({
     username:  z
                 .string()
                 .min(3 ,"Username must be at least 3 characters long")
-                .max(10, "Username must not exceed 10 characters")
+                .max(15, "Username must not exceed 10 characters")
                 .trim(),
     password:  z
                 .string()
