@@ -122,6 +122,7 @@ Second Brain is a personal knowledge management app that allows you to collect, 
      MONGO_URI=your-mongodb-connection-string
      JWT_SECRET=your-jwt-secret
      PORT=8000
+     FRONTEND_URL=http://localhost:5173
      ```
 
 4. Start the server:
