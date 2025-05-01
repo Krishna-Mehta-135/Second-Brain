@@ -1,6 +1,11 @@
 import "./App.css";
 import {Button} from "./../components/Button";
 import {PlusIcon} from "./../Icons/PlusIcon";
+import { Card } from './../components/Card';
+import { Logo } from './../Icons/Logo';
+import { ShareIcon } from './../Icons/ShareIcon';
+import { TwitterIcon } from './../Icons/TwitterIcon';
+import { YoutubeIcon } from './../Icons/YoutubeIcon';
 
 function App() {
     return (
@@ -9,11 +14,21 @@ function App() {
                 variant="Secondary"
                 size="sm"
                 text="Secondary"
-                startIcon={<PlusIcon size="sm" />}
+                startIcon={<PlusIcon  />}
                 onClick={() => {}}
             />
-            <Button variant="Primary" size="md" text="Primary" startIcon={<PlusIcon size="md" />} onClick={() => {}} />
-            <Button variant="Secondary" size="lg" text="large" startIcon={<PlusIcon size="lg" />} onClick={() => {}} />
+            <Button variant="Primary" size="md" text="Primary" startIcon={<PlusIcon  />} onClick={() => {}} />
+            <Button variant="Secondary" size="lg" text="large" startIcon={<PlusIcon  />} onClick={() => {}} />
+            
+
+
+            <Logo/>
+            <ShareIcon />
+            <TwitterIcon />
+            <YoutubeIcon />
+            <PlusIcon />
+
+            <Card />
         </>
     );
 }

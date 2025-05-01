@@ -1,4 +1,4 @@
-import {ReactElement} from "react";
+import React ,{ReactElement} from "react";
 
 type Variants = "Primary" | "Secondary";
 
@@ -28,7 +28,7 @@ export const Button = (props: ButtonProps) => {
         <button className={` ${variantStyles[props.variant]} ${defaultStyles} ${sizeStyles[props.size]}`}>
             {props.startIcon ? <div className="pr-2">{props.startIcon}</div> : null}
             {props.text}
-            {props.startIcon ? <div className="pl-2">{props.endIcon}</div> : null}
+            {props.endIcon ? <div className="pl-2">{props.endIcon}</div> : null}
         </button>
     );
 };
