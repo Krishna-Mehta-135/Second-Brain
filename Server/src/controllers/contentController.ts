@@ -11,7 +11,7 @@ import { z } from "zod";
 const createContentSchema = z.object({
     title: z.string().min(1, "Title is required"),
     link: z.string().min(1, "Link is required"),
-    type: z.enum(["article", "video", "image", "docs", "tweet"]),
+    type: z.enum(["link", "video", "document", "tweet", "tag"]),
     tags: z.array(z.string()).optional().default([])
 });
 

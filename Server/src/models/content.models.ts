@@ -11,7 +11,7 @@ export interface IContent extends Document {
 const contentSchema: Schema = new Schema({
     title: {type: String, required: true},
     link: {type: String, required: true},
-    type: {type: String, enum: ["article", "video", "image", "docs", "tweet"], required: true}, 
+    type: {type: String, enum: ["link", "video", "document", "tweet", "tag"], required: true}, 
     tags: [{type: mongoose.Schema.Types.ObjectId, ref: "Tag"}], // References to Tag model
     userId: {type: mongoose.Schema.Types.ObjectId, ref: "User", required: true}, // Reference to User model
 });
