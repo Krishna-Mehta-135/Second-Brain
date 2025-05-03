@@ -1,4 +1,4 @@
-import React ,{ReactElement} from "react";
+import React, {ReactElement} from "react";
 
 type Variants = "Primary" | "Secondary";
 
@@ -8,7 +8,7 @@ interface ButtonProps {
     text: string;
     startIcon?: ReactElement;
     endIcon?: ReactElement;
-    onClick: () => void;
+    onClick?: () => void;
 }
 
 const variantStyles = {
@@ -23,12 +23,12 @@ const sizeStyles = {
     lg: "py-4 px-6",
 };
 
-export const Button = (props: ButtonProps) => {
+export const Button = ({variant, size, text, startIcon, endIcon, onClick}: ButtonProps) => {
     return (
-        <button className={` ${variantStyles[props.variant]} ${defaultStyles} ${sizeStyles[props.size]}`}>
-            {props.startIcon ? <div className="pr-2">{props.startIcon}</div> : null}
-            {props.text}
-            {props.endIcon ? <div className="pl-2">{props.endIcon}</div> : null}
+        <button className={`${variantStyles[variant]} ${defaultStyles} ${sizeStyles[size]}`} onClick={onClick}>
+            {startIcon ? <div className="pr-2">{startIcon}</div> : null}
+            {text}
+            {endIcon ? <div className="pl-2">{endIcon}</div> : null}
         </button>
     );
 };

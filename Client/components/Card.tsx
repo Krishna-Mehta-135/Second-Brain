@@ -68,7 +68,7 @@ export const Card = ({ id, title, link, type, tags, onDelete }: CardProps) => {
 
     return (
         <div>
-            <div className="bg-white rounded-md p-4 max-w-72 border border-gray-300">
+            <div className="bg-white rounded-md p-4 max-w-72 min-h-54 border border-gray-300">
                 <div className="flex justify-between">
                     <div className="flex items-center">
                         <div className="text-gray-500 pr-2">
