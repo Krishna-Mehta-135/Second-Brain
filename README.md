@@ -105,7 +105,7 @@ Second Brain is a personal knowledge management app that allows you to collect, 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/second-brain.git
+   git clone https://github.com/Krishna-Mehta-135/Second-Brain.git
    cd second-brain
    ```
 
