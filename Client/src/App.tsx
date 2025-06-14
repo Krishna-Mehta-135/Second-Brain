@@ -1,15 +1,16 @@
-import "./App.css";
-import { Card } from '../components/Card';
-
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
+import Signin from "./pages/Signin";
 
 function App() {
-    return (
-        <>
-            <Card title="Sample Title" link="https://x.com/iamvictorjack/status/1917498890800226589" type="tweet" /><br></br>
-            <Card title="Default Title" link="https://www.youtube.com/watch?v=VgnqL0DDLC4" type="video" />
-            
-        </>
-    );
+    return <BrowserRouter>
+        <Routes>
+            <Route path="/signup" element={<Signup/>} />
+            <Route path="/signin" element={<Signin/>} />
+            <Route path="/dashboard" element={<Dashboard/>} />
+        </Routes>
+    </BrowserRouter>
 }
 
 export default App;
