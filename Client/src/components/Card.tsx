@@ -1,22 +1,22 @@
-import React, { useState, useEffect } from "react";
-import { TrashIcon } from "../Icons/TrashIcon";
-import { TwitterIcon } from "../Icons/TwitterIcon";
-import { YoutubeIcon } from "../Icons/YoutubeIcon";
-import { ShareIcon } from "../Icons/ShareIcon";
-import { DocumentIcon } from "../Icons/DocumentIcon";
-import { LinkIcon } from "../Icons/LinkIcon";
-import { TagIcon } from "../Icons/TagIcon";
+import React, {useState, useEffect} from "react";
+import {TrashIcon} from "../Icons/TrashIcon";
+import {TwitterIcon} from "../Icons/TwitterIcon";
+import {YoutubeIcon} from "../Icons/YoutubeIcon";
+import {ShareIcon} from "../Icons/ShareIcon";
+import {DocumentIcon} from "../Icons/DocumentIcon";
+import {LinkIcon} from "../Icons/LinkIcon";
+import {TagIcon} from "../Icons/TagIcon";
 
 interface CardProps {
     id?: string;
     title: string;
     link: string;
     type: "link" | "video" | "document" | "tweet" | "tag";
-    tags?: Array<{ _id: string; name: string }>;
+    tags?: Array<{_id: string; name: string}>;
     onDelete?: (id: string) => void;
 }
 
-export const Card = ({ id, title, link, type, tags, onDelete }: CardProps) => {
+export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
     const [youtubeId, setYoutubeId] = useState<string | null>(null);
     const [tweetLink, setTweetLink] = useState<string>(link);
 
@@ -34,7 +34,7 @@ export const Card = ({ id, title, link, type, tags, onDelete }: CardProps) => {
                 setTweetLink(updatedLink);
             }
 
-            const existingScript = Array.from(document.getElementsByTagName("script")).find(script =>
+            const existingScript = Array.from(document.getElementsByTagName("script")).find((script) =>
                 script.src.includes("platform.twitter.com/widgets.js")
             );
 
@@ -44,10 +44,6 @@ export const Card = ({ id, title, link, type, tags, onDelete }: CardProps) => {
                 script.async = true;
                 document.body.appendChild(script);
             }
-
-            return () => {
-                // Optional cleanup (not removing script to prevent reload issues)
-            };
         }
     }, [link, type]);
 
@@ -67,45 +63,44 @@ export const Card = ({ id, title, link, type, tags, onDelete }: CardProps) => {
     };
 
     return (
-        <div>
-            <div className="bg-white rounded-md p-4 max-w-72 min-h-54 border border-gray-300">
-                <div className="flex justify-between">
-                    <div className="flex items-center">
-                        <div className="text-gray-500 pr-2">
-                            <a href={link} target="_blank" rel="noopener noreferrer">
-                                {renderIcon()}
-                            </a>
-                        </div>
-                        <span className="font-medium">{title}</span>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300 w-full max-w-sm">
+            <div className="flex justify-between items-start">
+                <div className="flex items-center">
+                    <div className="text-gray-500 dark:text-gray-400 pr-2">
+                        <a href={link} target="_blank" rel="noopener noreferrer">
+                            {renderIcon()}
+                        </a>
                     </div>
-                    <div className="flex items-center">
-                        <div className="pr-2 text-gray-500 hover:text-purple-600 cursor-pointer">
-                            <ShareIcon />
-                        </div>
-                        {onDelete && id && (
-                            <div
-                                className="pr-2 text-gray-500 hover:text-red-500 cursor-pointer"
-                                onClick={() => onDelete(id)}
-                            >
-                                <TrashIcon />
-                            </div>
-                        )}
-                    </div>
+                    <span className="font-medium text-gray-800 dark:text-white">{title}</span>
                 </div>
-                {/* <div className="p-4"></div> */}
-
-                {tags && tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                        {tags.map((tag) => (
-                            <span key={tag._id} className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded">
-                                {tag.name}
-                            </span>
-                        ))}
+                <div className="flex items-center gap-2">
+                    <div className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer">
+                        <ShareIcon />
                     </div>
-                )}
+                    {onDelete && id && (
+                        <div className="text-gray-500 hover:text-red-500 cursor-pointer" onClick={() => onDelete(id)}>
+                            <TrashIcon />
+                        </div>
+                    )}
+                </div>
+            </div>
 
-                <div className="mt-4">
-                    {type === "video" && youtubeId && (
+            {tags && tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-3">
+                    {tags.map((tag) => (
+                        <span
+                            key={tag._id}
+                            className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 text-xs px-2 py-1 rounded"
+                        >
+                            {tag.name}
+                        </span>
+                    ))}
+                </div>
+            )}
+
+            <div className="mt-4">
+                {type === "video" && youtubeId && (
+                    <div className="w-full rounded overflow-hidden">
                         <iframe
                             className="w-full aspect-video"
                             src={`https://www.youtube.com/embed/${youtubeId}`}
@@ -115,46 +110,44 @@ export const Card = ({ id, title, link, type, tags, onDelete }: CardProps) => {
                             referrerPolicy="strict-origin-when-cross-origin"
                             allowFullScreen
                         ></iframe>
-                    )}
+                    </div>
+                )}
 
-                    {type === "tweet" && (
-                        <blockquote className="twitter-tweet">
-                            <a href={tweetLink}></a>
-                        </blockquote>
-                    )}
+                {type === "tweet" && (
+                    <blockquote className="twitter-tweet">
+                        <a href={tweetLink}></a>
+                    </blockquote>
+                )}
 
-                    {type === "document" && (
-                        <div className="mt-2">
-                            <a
-                                href={link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline"
-                            >
-                                Open Document →
-                            </a>
-                        </div>
-                    )}
+                {type === "document" && (
+                    <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                    >
+                        Open Document →
+                    </a>
+                )}
 
-                    {type === "link" && (
-                        <div className="mt-2">
-                            <a
-                                href={link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline"
-                            >
-                                Visit Link →
-                            </a>
-                        </div>
-                    )}
+                {type === "link" && (
+                    <a
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                    >
+                        Visit Link →
+                    </a>
+                )}
 
-                    {type === "tag" && (
-                        <div className="bg-purple-50 p-3 rounded mt-2">
-                            <p className="text-purple-700 text-sm">Related content with #{title} tag</p>
-                        </div>
-                    )}
-                </div>
+                {type === "tag" && (
+                    <div className="bg-purple-50 dark:bg-purple-800 p-3 rounded mt-2">
+                        <p className="text-purple-700 dark:text-purple-200 text-sm">
+                            Related content with #{title} tag
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );

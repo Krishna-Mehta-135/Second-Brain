@@ -1,11 +1,6 @@
-import React from 'react'
+// Signin.tsx
+import AuthForm from "../components/AuthForm";
 
-const Signin = () => {
-  return (
-    <div>
-      
-    </div>
-  )
+export default function Signin() {
+    return <AuthForm type="signin" />;
 }
-
-export default Signin
