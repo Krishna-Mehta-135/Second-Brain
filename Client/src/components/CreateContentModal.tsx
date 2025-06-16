@@ -1,45 +1,152 @@
-import {CloseIcon} from "../Icons/CloseIcon";
-import {Button} from "./Button";
+import {useEffect, useState} from "react";
+import {X} from "lucide-react";
+import axios from "axios";
 
-export const CreateContentModal = ({open, onClose}) => {
-    // We will make a controlled component. Controlled components in React ensure that the form data is handled by the React state, providing a consistent and predictable way to manage user input.
-    //State management is often handled in the parent component, especially when multiple child components need to interact or share state. The parent component maintains the state and passes it down to child components via props.
+interface Props {
+    open: boolean;
+    onClose: () => void;
+}
+
+const TYPES = ["article", "tweet", "video", "link"];
+
+export const CreateContentModal = ({open, onClose}: Props) => {
+    const [title, setTitle] = useState("");
+    const [link, setLink] = useState("");
+    const [type, setType] = useState("article");
+    const [tags, setTags] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    const resetForm = () => {
+        setTitle("");
+        setLink("");
+        setType("article");
+        setTags("");
+        setError("");
+    };
+
+    const handleClose = () => {
+        resetForm();
+        onClose();
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError("");
+
+        // Auto-prefix link with https:// if not provided
+        let fixedLink = link.trim();
+        if (!/^https?:\/\//i.test(fixedLink)) {
+            fixedLink = "https://" + fixedLink;
+        }
+
+        try {
+            new URL(fixedLink); // Validate URL
+        } catch {
+            setError("Please enter a valid URL");
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const res = await axios.post("/api/v1/content", {
+                title,
+                link: fixedLink,
+                type,
+                tags: tags
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter(Boolean),
+            });
+
+            console.log("✅ Created:", res.data);
+            resetForm();
+            onClose();
+        } catch (err: any) {
+            setError(err.response?.data?.message || "Something went wrong");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!open) resetForm();
+    }, [open]);
+
+    if (!open) return null;
 
     return (
-        <div>
-            {open && (
-                <div className="w-screen h-screen bg-slate-500 fixed top-0 left-0 opacity-60 flex justify-center ">
-                    <div className="flex flex-col justify-center">
-                        <span className="bg-white p-4 opacity-100 rounded">
-                            <div className="flex justify-end">
-                                <div onClick={onClose} className="cursor-pointer">
-                                <CloseIcon />
-                                </div>
-                            </div>
-                            <div>
-                                <Input placeholder={"Title"} />
-                                <Input placeholder={"Link"} />
-                            </div>
-                            <div className="flex justify-center">
-                                <Button variant="Primary" size="md" text="Submit" onClick={() => {}} />
-                            </div>
-                        </span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="w-full max-w-md bg-white dark:bg-gray-900 text-black dark:text-white rounded-xl p-6 shadow-2xl relative">
+                <button onClick={handleClose} className="absolute top-4 right-4 text-gray-500 hover:text-red-500">
+                    <X size={20} />
+                </button>
+
+                <h2 className="text-2xl font-semibold mb-4">Add New Content</h2>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Title</label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder="Your content title"
+                            required
+                            className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        />
                     </div>
-                </div>
-            )}
-        </div>
-    );
-};
 
-const Input = ({onChange, placeholder}) => {
-    return (
-        <div>
-            <input
-                placeholder={placeholder}
-                onChange={onChange}
-                type={"text"}
-                className="px-4 py-2 border rounded m-2"
-            />
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Link</label>
+                        <input
+                            type="url"
+                            value={link}
+                            onChange={(e) => setLink(e.target.value)}
+                            placeholder="e.g. www.example.com"
+                            required
+                            className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Type</label>
+                        <select
+                            value={type}
+                            onChange={(e) => setType(e.target.value)}
+                            className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
+                        >
+                            {TYPES.map((t) => (
+                                <option key={t} value={t}>
+                                    {t}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
+                        <input
+                            type="text"
+                            value={tags}
+                            onChange={(e) => setTags(e.target.value)}
+                            placeholder="e.g. react, typescript"
+                            className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg"
+                        />
+                    </div>
+
+                    {error && <p className="text-red-600 text-sm">{error}</p>}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
+                    >
+                        {loading ? "Saving..." : "Add Content"}
+                    </button>
+                </form>
+            </div>
         </div>
     );
 };
