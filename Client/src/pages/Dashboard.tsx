@@ -23,7 +23,7 @@ function Dashboard() {
     };
 
     return (
-        <div className="flex min-h-screen bg-gray-100 dark:bg-black transition-colors duration-300">
+        <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
             <Sidebar />
 
             <main className="ml-76 w-full p-6">
@@ -42,7 +42,7 @@ function Dashboard() {
                         text="Share Brain"
                         startIcon={<ShareIcon />}
                         size="md"
-                        onClick={() => setModalOpen(true)}
+                        onClick={() => {}}
                     />
                     <Button
                         variant="Primary"
