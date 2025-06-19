@@ -9,11 +9,12 @@ interface ButtonProps {
     startIcon?: ReactElement;
     endIcon?: ReactElement;
     onClick?: () => void;
+    className?: string;
 }
 
 const variantStyles = {
     Primary: "bg-purple-600 text-white",
-    Secondary: "bg-purple-300 text-purple-500",
+    Secondary: "bg-purple-300 text-purple-500 ",
 };
 
 const defaultStyles = "rounded-md flex items-center";
@@ -23,9 +24,9 @@ const sizeStyles = {
     lg: "py-4 px-6",
 };
 
-export const Button = ({variant, size, text, startIcon, endIcon, onClick}: ButtonProps) => {
+export const Button = ({variant, size, text, startIcon, endIcon, onClick, className}: ButtonProps) => {
     return (
-        <button className={`${variantStyles[variant]} ${defaultStyles} ${sizeStyles[size]}`} onClick={onClick}>
+        <button className={`${variantStyles[variant]} ${defaultStyles} ${sizeStyles[size]} ${className}`} onClick={onClick} >
             {startIcon ? <div className="pr-2">{startIcon}</div> : null}
             {text}
             {endIcon ? <div className="pl-2">{endIcon}</div> : null}
