@@ -19,8 +19,12 @@ const registerUser = asyncHandler(async (req, res) => {
     //User validation
     const validationResult = registerUserSchema.safeParse(req.body);
     if (!validationResult.success) {
-        return res.status(411).json({errors: validationResult.error.issues});
-    }
+        const formatted = validationResult.error.format();
+        return res.status(400).json({
+            message: "Validation failed",
+            errors: formatted,
+        });
+    }   
 
     const {username, email, password} = validationResult.data;
 
@@ -65,28 +69,21 @@ const loginUser = asyncHandler(async (req, res) => {
     const {credential, password} = validationResult.data;
 
     const user = await User.findOne({
-        $or: [
-            {email: credential},
-            {username: credential}
-        ],
+        $or: [{email: credential}, {username: credential}],
     }).exec();
 
     if (!user) {
-        return res.status(403).json(
-            new ApiResponse(403 , null , "Invalid Credentials")
-        )
+        return res.status(403).json(new ApiResponse(403, null, "Invalid Credentials"));
     }
 
     // Verify password using the comparePassword method from your User model
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-        return res.status(401).json(
-            new ApiResponse(401, null, "Invalid credentials")
-        );
+        return res.status(401).json(new ApiResponse(401, null, "Invalid credentials"));
     }
 
     const token = generateToken(user._id);
-    
+
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -103,5 +100,4 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
-
-export { registerUser , loginUser}
+export {registerUser, loginUser};
