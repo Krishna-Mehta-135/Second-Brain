@@ -39,9 +39,6 @@ export default function AuthForm({type}: AuthProps) {
             const payload = type === "signup" ? {username, email: credential, password} : {credential, password};
 
             const res = await axios.post(endpoint, payload);
-            console.log("🔍 Payload:", payload);
-
-            console.log("✅ Success:", res.data);
             setError("");
             localStorage.setItem("token", res.data.data.token);
             navigate("/dashboard");
