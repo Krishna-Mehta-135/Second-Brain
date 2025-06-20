@@ -5,14 +5,15 @@ import axios from "axios";
 interface Props {
     open: boolean;
     onClose: () => void;
+    onContentAdded?: () => void;
 }
 
-const TYPES = ["article", "tweet", "video", "link"];
+const TYPES = ["link", "video", "document", "tweet"];
 
-export const CreateContentModal = ({open, onClose}: Props) => {
+export const CreateContentModal = ({open, onClose, onContentAdded}: Props) => {
     const [title, setTitle] = useState("");
     const [link, setLink] = useState("");
-    const [type, setType] = useState("article");
+    const [type, setType] = useState("link");
     const [tags, setTags] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -20,7 +21,7 @@ export const CreateContentModal = ({open, onClose}: Props) => {
     const resetForm = () => {
         setTitle("");
         setLink("");
-        setType("article");
+        setType("link");
         setTags("");
         setError("");
     };
@@ -35,14 +36,16 @@ export const CreateContentModal = ({open, onClose}: Props) => {
         setLoading(true);
         setError("");
 
-        // Auto-prefix link with https:// if not provided
         let fixedLink = link.trim();
+
+        // ✅ Prefix "https://" if no protocol
         if (!/^https?:\/\//i.test(fixedLink)) {
             fixedLink = "https://" + fixedLink;
         }
 
+        // ✅ Now validate the final fixed link
         try {
-            new URL(fixedLink); // Validate URL
+            new URL(fixedLink); // will throw if invalid
         } catch {
             setError("Please enter a valid URL");
             setLoading(false);
@@ -50,17 +53,26 @@ export const CreateContentModal = ({open, onClose}: Props) => {
         }
 
         try {
-            const res = await axios.post("/api/v1/content", {
-                title,
-                link: fixedLink,
-                type,
-                tags: tags
-                .split(",")
-                .map((tag) => tag.trim())
-                .filter(Boolean),
-            });
+            await axios.post(
+                "http://localhost:9898/api/v1/content",
+                {
+                    title,
+                    link: fixedLink,
+                    type,
+                    tags: tags
+                    .split(",")
+                    .map((tag) => tag.trim())
+                    .filter(Boolean),
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem("token")}`,
+                    },
+                    withCredentials: true,
+                }
+            );
 
-            console.log("✅ Created:", res.data);
+            if (onContentAdded) onContentAdded();
             resetForm();
             onClose();
         } catch (err: any) {

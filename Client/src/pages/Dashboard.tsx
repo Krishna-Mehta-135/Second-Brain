@@ -14,8 +14,8 @@ import {toggleDarkMode, initTheme} from "../utils/theme";
 interface ContentItem {
     title: string;
     link: string;
-    type: string;
-    tags?: string[];
+    type: "link" | "video" | "document" | "tweet" | "tag";
+    tags?: Array<{_id: string; name: string}>;
 }
 
 function Dashboard() {
@@ -26,25 +26,26 @@ function Dashboard() {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
+    const fetchContent = async () => {
+        try {
+            const res = await axios.get("http://localhost:9898/api/v1/content", {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("token")}`,
+                },
+            });
+
+            const data = Array.isArray(res.data.data) ? res.data.data : [];
+            setContent(data);
+        } catch (err) {
+            console.error("❌ Failed to load content:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
         initTheme();
         setIsDarkMode(document.documentElement.classList.contains("dark"));
-
-        const fetchContent = async () => {
-            try {
-                const res = await axios.get("/api/v1/content", {
-                    withCredentials: true,
-                });
-
-                const data = Array.isArray(res.data) ? res.data : [];
-                setContent(data);
-            } catch (err) {
-                console.error("❌ Failed to load content:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchContent();
     }, []);
 
@@ -61,7 +62,7 @@ function Dashboard() {
     const filteredContent = content.filter((item) => {
         const lowerSearch = search.toLowerCase();
         const titleMatch = item.title.toLowerCase().includes(lowerSearch);
-        const tagMatch = item.tags?.some((tag) => tag.toLowerCase().includes(lowerSearch));
+        const tagMatch = item.tags?.some((tag) => tag.name.toLowerCase().includes(lowerSearch));
         return titleMatch || tagMatch;
     });
 
@@ -70,7 +71,7 @@ function Dashboard() {
             <Sidebar />
 
             <main className="ml-76 w-full p-6 flex flex-col min-h-screen">
-                <CreateContentModal open={modalOpen} onClose={() => setModalOpen(false)} />
+                <CreateContentModal onContentAdded={fetchContent} open={modalOpen} onClose={() => setModalOpen(false)} />
 
                 {/* Header: Search + Buttons */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
@@ -141,7 +142,12 @@ function Dashboard() {
                                     animate={{opacity: 1, y: 0}}
                                     transition={{delay: index * 0.05}}
                                 >
-                                    <Card {...item} />
+                                    <Card
+                                        {...item}
+                                        tags={item.tags?.map((tag: any) =>
+                                            typeof tag === "string" ? {_id: tag, name: tag} : tag
+                                        )}
+                                    />
                                 </motion.div>
                             ))}
                         </div>
