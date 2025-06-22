@@ -24,6 +24,8 @@ function Dashboard() {
     const [search, setSearch] = useState("");
     const [content, setContent] = useState<ContentItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
     const navigate = useNavigate();
 
     const fetchContent = async () => {
@@ -67,23 +69,52 @@ function Dashboard() {
     });
 
     return (
-        <div className="flex min-h-screen bg-gray-100 dark:bg-black transition-colors duration-300">
-            <Sidebar />
+        <div className="flex min-h-screen bg-gray-100 dark:bg-black transition-colors duration-300 relative">
+            {/* Sidebar for large screens */}
+            <div className="hidden sm:block">
+                <Sidebar />
+            </div>
 
-            <main className="ml-76 w-full p-6 flex flex-col min-h-screen">
-                <CreateContentModal onContentAdded={fetchContent} open={modalOpen} onClose={() => setModalOpen(false)} />
+            {/* Sidebar drawer for mobile */}
+            {sidebarOpen && (
+                <div className="fixed inset-0 z-50 bg-black/50 sm:hidden" onClick={() => setSidebarOpen(false)}>
+                    <div
+                        className="absolute left-0 top-0 w-64 h-full bg-white dark:bg-gray-900 shadow-lg z-50"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <Sidebar />
+                    </div>
+                </div>
+            )}
 
-                {/* Header: Search + Buttons */}
+            {/* Main Content */}
+            <main className="flex-1 w-full px-4 sm:px-6 py-6 sm:ml-76">
+                <CreateContentModal
+                    onContentAdded={fetchContent}
+                    open={modalOpen}
+                    onClose={() => setModalOpen(false)}
+                />
+
+                {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search by title or tag..."
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="flex items-center gap-2 w-full">
+                        <button
+                            className="sm:hidden text-2xl"
+                            onClick={() => setSidebarOpen(true)}
+                            aria-label="Open sidebar"
+                        >
+                            ☰
+                        </button>
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search by title or tag..."
+                            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
 
-                    <div className="flex justify-end gap-4">
+                    <div className="flex flex-wrap justify-end gap-3">
                         <Button
                             variant="Secondary"
                             text={isDarkMode ? "☀️" : "🌙"}
@@ -108,7 +139,7 @@ function Dashboard() {
                     </div>
                 </div>
 
-                {/* Main Content */}
+                {/* Card Section */}
                 <div className="flex-1 flex items-center justify-center">
                     {loading ? (
                         <p className="text-gray-600 dark:text-gray-300">Loading...</p>
@@ -141,6 +172,7 @@ function Dashboard() {
                                     initial={{opacity: 0, y: 20}}
                                     animate={{opacity: 1, y: 0}}
                                     transition={{delay: index * 0.05}}
+                                    className="h-[280px] max-h-[280px]" // uniform height
                                 >
                                     <Card
                                         {...item}

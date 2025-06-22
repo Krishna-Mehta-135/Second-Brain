@@ -15,7 +15,6 @@ export default function AuthForm({type}: AuthProps) {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isDarkMode, setIsDarkMode] = useState(false);
-
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -39,6 +38,7 @@ export default function AuthForm({type}: AuthProps) {
             const payload = type === "signup" ? {username, email: credential, password} : {credential, password};
 
             const res = await axios.post(endpoint, payload);
+
             setError("");
             localStorage.setItem("token", res.data.data.token);
             navigate("/dashboard");
@@ -49,6 +49,7 @@ export default function AuthForm({type}: AuthProps) {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-blue-50 dark:bg-gray-900 transition-colors duration-300 px-4 relative">
+            {/* Theme Toggle */}
             <div className="absolute top-4 right-4">
                 <button
                     onClick={handleToggleTheme}
@@ -59,6 +60,7 @@ export default function AuthForm({type}: AuthProps) {
             </div>
 
             <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl transition-all duration-300 border border-gray-200 dark:border-gray-700">
+                {/* Header */}
                 <div className="mb-6 text-center">
                     <h1 className="text-4xl font-bold text-blue-700 dark:text-white">🧠 Second Brain</h1>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
@@ -78,6 +80,8 @@ export default function AuthForm({type}: AuthProps) {
                             </label>
                             <input
                                 type="text"
+                                autoComplete="username"
+                                autoFocus
                                 placeholder="Your username"
                                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-black dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                                 value={username}
@@ -93,6 +97,7 @@ export default function AuthForm({type}: AuthProps) {
                         </label>
                         <input
                             type="text"
+                            autoComplete={type === "signup" ? "email" : "username"}
                             placeholder={type === "signup" ? "you@example.com" : "you@example.com or yourusername"}
                             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-black dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                             value={credential}
@@ -105,6 +110,7 @@ export default function AuthForm({type}: AuthProps) {
                         <label className="block text-sm font-medium text-blue-700 dark:text-white mb-1">Password</label>
                         <input
                             type="password"
+                            autoComplete={type === "signup" ? "new-password" : "current-password"}
                             placeholder="••••••••"
                             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-black dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                             value={password}

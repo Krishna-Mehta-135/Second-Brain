@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useState, useRef} from "react";
 import {X} from "lucide-react";
 import axios from "axios";
 
@@ -17,6 +17,14 @@ export const CreateContentModal = ({open, onClose, onContentAdded}: Props) => {
     const [tags, setTags] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+
+    const titleRef = useRef<HTMLInputElement | null>(null);
+
+    useEffect(() => {
+        if (open && titleRef.current) {
+            titleRef.current.focus();
+        }
+    }, [open]);
 
     const resetForm = () => {
         setTitle("");
@@ -38,14 +46,12 @@ export const CreateContentModal = ({open, onClose, onContentAdded}: Props) => {
 
         let fixedLink = link.trim();
 
-        // ✅ Prefix "https://" if no protocol
         if (!/^https?:\/\//i.test(fixedLink)) {
             fixedLink = "https://" + fixedLink;
         }
 
-        // ✅ Now validate the final fixed link
         try {
-            new URL(fixedLink); // will throw if invalid
+            new URL(fixedLink);
         } catch {
             setError("Please enter a valid URL");
             setLoading(false);
@@ -72,7 +78,7 @@ export const CreateContentModal = ({open, onClose, onContentAdded}: Props) => {
                 }
             );
 
-            if (onContentAdded) onContentAdded();
+            onContentAdded?.();
             resetForm();
             onClose();
         } catch (err: any) {
@@ -89,18 +95,30 @@ export const CreateContentModal = ({open, onClose, onContentAdded}: Props) => {
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-white dark:bg-gray-900 text-black dark:text-white rounded-xl p-6 shadow-2xl relative">
-                <button onClick={handleClose} className="absolute top-4 right-4 text-gray-500 hover:text-red-500">
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            aria-modal="true"
+            role="dialog"
+            aria-labelledby="modal-title"
+        >
+            <div className="w-full max-w-md bg-white dark:bg-gray-900 text-black dark:text-white rounded-xl p-6 sm:p-8 shadow-2xl relative">
+                <button
+                    onClick={handleClose}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-red-500 transition"
+                    aria-label="Close modal"
+                >
                     <X size={20} />
                 </button>
 
-                <h2 className="text-2xl font-semibold mb-4">Add New Content</h2>
+                <h2 id="modal-title" className="text-2xl font-semibold mb-4">
+                    Add New Content
+                </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium mb-1">Title</label>
                         <input
+                            ref={titleRef}
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}

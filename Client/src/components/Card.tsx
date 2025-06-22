@@ -34,11 +34,11 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                 setTweetLink(updatedLink);
             }
 
-            const existingScript = Array.from(document.getElementsByTagName("script")).find((script) =>
-                script.src.includes("platform.twitter.com/widgets.js")
+            const scriptLoaded = [...document.getElementsByTagName("script")].some((s) =>
+                s.src.includes("platform.twitter.com/widgets.js")
             );
 
-            if (!existingScript) {
+            if (!scriptLoaded) {
                 const script = document.createElement("script");
                 script.src = "https://platform.twitter.com/widgets.js";
                 script.async = true;
@@ -62,16 +62,21 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
         }
     };
 
+    const showFallback = (!title || title.trim() === "") && type !== "tweet" && type !== "video";
+
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300 w-full max-w-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md border border-gray-200 dark:border-gray-700 transition-colors duration-300 w-full h-full flex flex-col justify-between overflow-hidden z-0">
+            {/* Header */}
             <div className="flex justify-between items-start">
-                <div className="flex items-center">
-                    <div className="text-gray-500 dark:text-gray-400 pr-2">
+                <div className="flex items-center gap-2">
+                    <div className="text-gray-500 dark:text-gray-400">
                         <a href={link} target="_blank" rel="noopener noreferrer">
                             {renderIcon()}
                         </a>
                     </div>
-                    <span className="font-medium text-gray-800 dark:text-white">{title}</span>
+                    <span className="font-medium text-gray-800 dark:text-white break-all">
+                        {title || <span className="italic text-gray-500">Untitled</span>}
+                    </span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer">
@@ -85,6 +90,7 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                 </div>
             </div>
 
+            {/* Tags */}
             {tags && tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-3">
                     {tags.map((tag) => (
@@ -98,7 +104,13 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                 </div>
             )}
 
-            <div className="mt-4">
+            {/* Content */}
+            <div className="mt-4 relative z-0 flex-1">
+                {/* Fallback if content is missing */}
+                {showFallback && (
+                    <div className="flex justify-center items-center h-full opacity-30">{renderIcon()}</div>
+                )}
+
                 {type === "video" && youtubeId && (
                     <div className="w-full rounded overflow-hidden">
                         <iframe
@@ -114,7 +126,7 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                 )}
 
                 {type === "tweet" && (
-                    <blockquote className="twitter-tweet">
+                    <blockquote className="twitter-tweet overflow-hidden relative z-0">
                         <a href={tweetLink}></a>
                     </blockquote>
                 )}
