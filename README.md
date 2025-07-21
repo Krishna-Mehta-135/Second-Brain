@@ -119,7 +119,7 @@ Second Brain is a personal knowledge management app that allows you to collect, 
    - Create a `.env` file in the `Server` directory.
    - Add the following variables:
      ```
-     MONGO_URI=your-mongodb-connection-string
+     MONGO_URL=your-mongodb-connection-string
      JWT_SECRET=your-jwt-secret
      PORT=8000
      FRONTEND_URL=http://localhost:5173
