@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+import {useState, useEffect} from "react";
 import {TrashIcon} from "../Icons/TrashIcon";
 import {TwitterIcon} from "../Icons/TwitterIcon";
 import {YoutubeIcon} from "../Icons/YoutubeIcon";
@@ -6,6 +6,17 @@ import {ShareIcon} from "../Icons/ShareIcon";
 import {DocumentIcon} from "../Icons/DocumentIcon";
 import {LinkIcon} from "../Icons/LinkIcon";
 import {TagIcon} from "../Icons/TagIcon";
+
+// Twitter widgets type declaration
+declare global {
+    interface Window {
+        twttr?: {
+            widgets: {
+                load: () => void;
+            };
+        };
+    }
+}
 
 interface CardProps {
     id?: string;
@@ -34,16 +45,36 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                 setTweetLink(updatedLink);
             }
 
-            const existingScript = Array.from(document.getElementsByTagName("script")).find((script) =>
-                script.src.includes("platform.twitter.com/widgets.js")
-            );
+            // Load Twitter widgets script
+            const loadTwitterWidgets = () => {
+                const existingScript = Array.from(document.getElementsByTagName("script")).find((script) =>
+                    script.src.includes("platform.twitter.com/widgets.js")
+                );
 
-            if (!existingScript) {
-                const script = document.createElement("script");
-                script.src = "https://platform.twitter.com/widgets.js";
-                script.async = true;
-                document.body.appendChild(script);
-            }
+                if (!existingScript) {
+                    const script = document.createElement("script");
+                    script.src = "https://platform.twitter.com/widgets.js";
+                    script.async = true;
+                    script.onload = () => {
+                        // Force widget creation after script loads
+                        setTimeout(() => {
+                            if (window.twttr && window.twttr.widgets) {
+                                window.twttr.widgets.load();
+                            }
+                        }, 100);
+                    };
+                    document.body.appendChild(script);
+                } else {
+                    // Script already exists, just reload widgets
+                    setTimeout(() => {
+                        if (window.twttr && window.twttr.widgets) {
+                            window.twttr.widgets.load();
+                        }
+                    }, 100);
+                }
+            };
+
+            loadTwitterWidgets();
         }
     }, [link, type]);
 
@@ -63,22 +94,24 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors duration-300 w-full max-w-sm">
-            <div className="flex justify-between items-start">
-                <div className="flex items-center">
-                    <div className="text-gray-500 dark:text-gray-400 pr-2">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-gray-200/50 dark:border-gray-700/50 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] w-full">
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3 flex-1">
+                    <div className="text-gray-500 dark:text-gray-400 flex-shrink-0">
                         <a href={link} target="_blank" rel="noopener noreferrer">
                             {renderIcon()}
                         </a>
                     </div>
-                    <span className="font-medium text-gray-800 dark:text-white">{title}</span>
+                    <h3 className="font-semibold text-gray-800 dark:text-white text-sm leading-tight line-clamp-2">
+                        {title}
+                    </h3>
                 </div>
-                <div className="flex items-center gap-2">
-                    <div className="text-gray-500 hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer">
+                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                    <div className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer p-1 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
                         <ShareIcon />
                     </div>
                     {onDelete && id && (
-                        <div className="text-gray-500 hover:text-red-500 cursor-pointer" onClick={() => onDelete(id)}>
+                        <div className="text-gray-400 hover:text-red-500 cursor-pointer p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" onClick={() => onDelete(id)}>
                             <TrashIcon />
                         </div>
                     )}
@@ -98,9 +131,9 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                 </div>
             )}
 
-            <div className="mt-4">
+            <div className="space-y-4">
                 {type === "video" && youtubeId && (
-                    <div className="w-full rounded overflow-hidden">
+                    <div className="w-full rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700">
                         <iframe
                             className="w-full aspect-video"
                             src={`https://www.youtube.com/embed/${youtubeId}`}
@@ -114,38 +147,54 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                 )}
 
                 {type === "tweet" && (
-                    <blockquote className="twitter-tweet">
-                        <a href={tweetLink}></a>
-                    </blockquote>
+                    <div className="w-full max-w-full overflow-hidden">
+                        <blockquote 
+                            className="twitter-tweet" 
+                            data-theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                            data-width="100%"
+                            data-dnt="true"
+                        >
+                            <a href={tweetLink}></a>
+                        </blockquote>
+                    </div>
                 )}
 
                 {type === "document" && (
-                    <a
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
-                    >
-                        Open Document →
-                    </a>
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                        <a
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm flex items-center gap-2 transition-colors"
+                        >
+                            <DocumentIcon />
+                            Open Document →
+                        </a>
+                    </div>
                 )}
 
                 {type === "link" && (
-                    <a
-                        href={link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
-                    >
-                        Visit Link →
-                    </a>
+                    <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+                        <a
+                            href={link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 font-medium text-sm flex items-center gap-2 transition-colors"
+                        >
+                            <LinkIcon />
+                            Visit Link →
+                        </a>
+                    </div>
                 )}
 
                 {type === "tag" && (
-                    <div className="bg-purple-50 dark:bg-purple-800 p-3 rounded mt-2">
-                        <p className="text-purple-700 dark:text-purple-200 text-sm">
-                            Related content with #{title} tag
-                        </p>
+                    <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                        <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                            <TagIcon />
+                            <p className="text-sm font-medium">
+                                Related content with #{title} tag
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>

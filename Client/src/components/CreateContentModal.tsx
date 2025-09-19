@@ -67,8 +67,8 @@ export const CreateContentModal = ({open, onClose, onContentAdded}: Props) => {
                 {
                     headers: {
                         Authorization: `Bearer ${localStorage.getItem("token")}`,
-                    },
-                    withCredentials: true,
+                        "Content-Type": "application/json"
+                    }
                 }
             );
 
