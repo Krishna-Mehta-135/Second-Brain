@@ -19,26 +19,35 @@ declare global {
 }
 
 interface CardProps {
+    _id?: string;
     id?: string;
     title: string;
     link: string;
-    type: "link" | "video" | "document" | "tweet" | "tag";
+    type: "link" | "video" | "document" | "tweet" | "tag" | "twitter" | "youtube";
     tags?: Array<{_id: string; name: string}>;
+    description?: string;
+    createdAt?: string;
     onDelete?: (id: string) => void;
+    isShared?: boolean;
 }
 
-export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
+export const Card = ({_id, id, title, link, type, tags, description, createdAt, onDelete, isShared = false}: CardProps) => {
+    const cardId = _id || id;
+    
+    // Map backend types to frontend types
+    const normalizedType = type === "twitter" ? "tweet" : type === "youtube" ? "video" : type;
+    
     const [youtubeId, setYoutubeId] = useState<string | null>(null);
     const [tweetLink, setTweetLink] = useState<string>(link);
 
     useEffect(() => {
-        if (type === "video") {
+        if (normalizedType === "video" || type === "youtube") {
             const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
             const match = link.match(regex);
             if (match) setYoutubeId(match[1]);
         }
 
-        if (type === "tweet") {
+        if (normalizedType === "tweet" || type === "twitter") {
             let updatedLink = link;
             if (updatedLink.includes("x.com")) {
                 updatedLink = updatedLink.replace("x.com", "twitter.com");
@@ -79,7 +88,7 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
     }, [link, type]);
 
     const renderIcon = () => {
-        switch (type) {
+        switch (normalizedType) {
             case "video":
                 return <YoutubeIcon />;
             case "tweet":
@@ -90,6 +99,8 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                 return <LinkIcon />;
             case "tag":
                 return <TagIcon />;
+            default:
+                return <LinkIcon />;
         }
     };
 
@@ -110,8 +121,8 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                     <div className="text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 cursor-pointer p-1 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
                         <ShareIcon />
                     </div>
-                    {onDelete && id && (
-                        <div className="text-gray-400 hover:text-red-500 cursor-pointer p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" onClick={() => onDelete(id)}>
+                    {!isShared && onDelete && cardId && (
+                        <div className="text-gray-400 hover:text-red-500 cursor-pointer p-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" onClick={() => onDelete(cardId)}>
                             <TrashIcon />
                         </div>
                     )}
@@ -132,7 +143,7 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
             )}
 
             <div className="space-y-4">
-                {type === "video" && youtubeId && (
+                {(normalizedType === "video" || type === "youtube") && youtubeId && (
                     <div className="w-full rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700">
                         <iframe
                             className="w-full aspect-video"
@@ -146,7 +157,7 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                     </div>
                 )}
 
-                {type === "tweet" && (
+                {(normalizedType === "tweet" || type === "twitter") && (
                     <div className="w-full max-w-full overflow-hidden">
                         <blockquote 
                             className="twitter-tweet" 
@@ -159,7 +170,7 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                     </div>
                 )}
 
-                {type === "document" && (
+                {normalizedType === "document" && (
                     <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
                         <a
                             href={link}
@@ -173,7 +184,7 @@ export const Card = ({id, title, link, type, tags, onDelete}: CardProps) => {
                     </div>
                 )}
 
-                {type === "link" && (
+                {normalizedType === "link" && (
                     <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
                         <a
                             href={link}

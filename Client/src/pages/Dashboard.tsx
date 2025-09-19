@@ -83,9 +83,9 @@ function Dashboard() {
             // Copy to clipboard
             await navigator.clipboard.writeText(shareUrl);
             
-            // Show success message
+            // Show success message with clickable link
             setToast({
-                message: `Share link copied to clipboard! ${shareUrl}`,
+                message: `✅ Share link copied! Click to visit: ${shareUrl}`,
                 type: "success"
             });
             

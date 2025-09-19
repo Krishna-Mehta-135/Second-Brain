@@ -20,7 +20,7 @@ const shareBrain = asyncHandler(async (req: Request, res: Response) => {
         isPublic,
     });
 
-    const shareUrl = `${process.env.FRONTEND_URL}/shared/${shareLink}`;
+    const shareUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/shared/${shareLink}`;
 
     return res.status(201).json(new ApiResponse(201, {shareUrl, share}, "Brain shared successfully"));
 });
