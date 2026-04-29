@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String    @id @default(uuid())
+  username String    @unique
+  email    String    @unique
+  password String
+  contents Content[]
+  links    Link[]
+  shares   Share[]
+}
+
+model Tag {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  contents Content[]
+}
+
+model Content {
+  id      String   @id @default(uuid())
+  title   String
+  link    String
+  type    String // "link", "video", "document", "tweet", "tag"
+  userId  String
+  user    User     @relation(fields: [userId], references: [id])
+  tags    Tag[]
+}
+
+model Link {
+  id     String @id @default(uuid())
+  link   String
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Share {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  shareLink  String    @unique
+  expiry     DateTime?
+  isPublic   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
