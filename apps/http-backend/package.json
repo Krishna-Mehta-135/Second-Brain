@@ -1,10 +1,10 @@
 {
   "name": "http-backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
     "build": "tsc -b",
-    "start": "nodemon dist/index.js",
+    "start": "nodemon dist/server.js",
     "dev": "npm run build && npm run start"
   },
   "keywords": [],
