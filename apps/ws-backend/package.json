@@ -1,6 +1,7 @@
 {
   "name": "ws-backend",
   "version": "1.0.0",
+  "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc -b",
@@ -11,7 +12,8 @@
     "@repo/db": "workspace:*",
     "dotenv": "^16.4.5",
     "jsonwebtoken": "^9.0.2",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "yjs": "^13.6.30"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.6",

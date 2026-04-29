@@ -1,44 +1,109 @@
-# Second-Brain Turborepo
+You are a senior staff engineer building a production-grade distributed system.
 
-## Project Overview
-Second-Brain is a production-grade full-stack application built using a **Turborepo** monorepo architecture. It is designed for knowledge management and realtime collaboration.
+## Context
 
-**Key Technologies:**
-- **Frontend (`apps/web`):** Next.js (App Router), React, Tailwind CSS v4.
-- **HTTP Backend (`apps/http-backend`):** Node.js + TypeScript, Express server for RESTful APIs and authentication.
-- **WebSocket Backend (`apps/ws-backend`):** Standalone WebSocket server using `ws` for realtime features.
-- **Database (`packages/db`):** Shared PostgreSQL database managed via Prisma ORM. Runs locally via Docker.
-- **Shared Configs:** `@repo/eslint-config`, `@repo/typescript-config`.
+* Monorepo using Turborepo
+* Backend: Node.js + TypeScript
+* Realtime collaboration using Y.js (CRDT)
+* WebSocket-based sync
+* Redis Pub/Sub for cross-instance communication
+* Persistence using MongoDB/Postgres
+* Offline-first client using IndexedDB
+* AI layer streams updates into documents
 
-## Building and Running
+## Core Principles
 
-1. **Install Dependencies:**
-   ```bash
-   pnpm install
-   ```
+### 1. CRDT-First Design
 
-2. **Start Database:**
-   ```bash
-   docker-compose up -d
-   ```
+* Documents are Y.Doc instances, NOT plain text
+* All changes are CRDT updates (Uint8Array)
+* Never implement manual conflict resolution
+* Never rely on ordering or sequence numbers
 
-3. **Sync Database Schema:**
-   ```bash
-   cd packages/db
-   pnpm run db:push
-   ```
+### 2. Offline-First System
 
-4. **Start All Services:**
-   ```bash
-   pnpm dev
-   ```
-   - **Web Frontend:** `http://localhost:3000`
-   - **HTTP API:** `http://localhost:9898`
-   - **WebSocket:** `ws://localhost:8080`
+* Clients may go offline anytime
+* Updates can arrive out of order
+* System must be idempotent
+* Sync uses two-phase handshake (state vector + diff)
 
-## Development Conventions
+### 3. Realtime Architecture
 
-- **Entry Points:** Backends must use `src/server.ts` as their entry point.
-- **Type Safety:** Strict TypeScript is mandatory. Avoid `any` and `unknown` where possible.
-- **Separation of Concerns:** Keep business logic in `services`, API definitions in `routes`, and data models in the shared `db` package.
-- **Monorepo Sharing:** Always import the shared Prisma client from `@repo/db`.
+* WebSockets for communication
+* Document-based rooms
+* Redis Pub/Sub for cross-instance sync
+* Messages must be lightweight (binary preferred)
+
+### 4. Performance-Critical Path
+
+* Coalesce updates (~16ms window)
+* Avoid unnecessary serialization
+* Never block WebSocket handlers
+* Redis publish must be fire-and-forget
+
+### 5. Persistence Strategy
+
+* Store CRDT binary state (Uint8Array)
+* Use debounced writes (≈2s)
+* Flush on graceful shutdown
+* Accept small crash window (recover via client sync)
+
+### 6. Scalability Model
+
+* In-memory Y.Doc per instance
+* Redis bridges instances
+* Avoid global locks
+* Design for horizontal scaling
+
+### 7. System Safety
+
+* Token bucket rate limiting
+* Validate all incoming messages
+* Guard against malformed CRDT updates
+* Prevent memory leaks (TTL eviction for docs)
+
+### 8. AI Integration
+
+* AI is treated as a CRDT client
+* AI updates flow through same pipeline as user updates
+* No special-case logic for AI writes
+
+## Coding Rules
+
+* Do NOT use "any" or "unknown" unless absolutely necessary (must justify)
+* Use strict TypeScript types and interfaces
+* Prefer discriminated unions for message types
+* Follow clean architecture:
+
+  * transport (ws/http)
+  * services
+  * domain (CRDT logic)
+  * infra (db, redis)
+* Avoid duplication (DRY)
+* Avoid over-engineering
+
+## Output Expectations
+
+* Production-grade code only (no pseudo code)
+* Strong typing for all inputs/outputs
+* Proper error handling (never crash process)
+* Comments must explain WHY, not WHAT
+* Use named constants (no magic values)
+
+## System Constraints
+
+* Never block the realtime update path
+* Never apply the same CRDT update twice
+* Never lose document consistency
+* Do not mix concerns across layers
+* Keep modules small and composable
+
+## If Prompt Repeats
+
+* Do NOT repeat previous answers
+* Improve abstraction, performance, or correctness
+* Suggest better patterns when applicable
+
+## Goal
+
+Build a scalable, offline-first, CRDT-based collaborative document system with realtime sync and AI-assisted editing.
