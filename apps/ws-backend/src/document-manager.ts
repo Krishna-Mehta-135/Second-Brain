@@ -62,6 +62,7 @@
 
     export class DocumentManager {
         private readonly registry: DocRegistry = new Map<string, DocEntry>();
+        private readonly contentMemoryEstimateBytes = new Map<string, number>();
         private readonly loadSnapshot: DocumentManagerOptions["loadSnapshot"];
         private readonly flushSnapshot: DocumentManagerOptions["flushSnapshot"];
         private readonly evictionTtlMs: number;
@@ -124,57 +125,75 @@
 
             entry.isDirty = true;
             entry.lastAccessed = this.now();
+            this.contentMemoryEstimateBytes.set(
+                docId,
+                (this.contentMemoryEstimateBytes.get(docId) ?? 0) + update.byteLength,
+            );
             this.log("document:update-applied", docId, entry);
 
             return ok(undefined);
         }
 
-        public getState(docId: string): Uint8Array | null {
-            const entry = this.registry.get(docId);
-            if (!entry || entry.loadPromise) {
-                return null;
+        public getState(docId: string): Result<Uint8Array, CRDTError> {
+            const entryResult = this.getLoadedEntry(docId);
+            if (!entryResult.ok) {
+                return entryResult;
             }
 
+            const entry = entryResult.value;
             entry.lastAccessed = this.now();
 
             try {
-                return Y.encodeStateAsUpdate(entry.doc);
+                const state = Y.encodeStateAsUpdate(entry.doc);
+                this.contentMemoryEstimateBytes.set(docId, state.byteLength);
+
+                return ok(state);
             } catch (error: unknown) {
-                this.onError({
+                const stateError: CRDTError = {
                     code: "DOCUMENT_STATE_ENCODE_FAILED",
                     message: `Failed to encode state for document "${docId}".`,
                     cause: error,
-                });
+                };
 
-                return null;
+                this.onError(stateError);
+                return err(stateError);
             }
         }
 
-        public getStateVector(docId: string): Uint8Array | null {
-            const entry = this.registry.get(docId);
-            if (!entry || entry.loadPromise) {
-                return null;
+        public getStateVector(docId: string): Result<Uint8Array, CRDTError> {
+            const entryResult = this.getLoadedEntry(docId);
+            if (!entryResult.ok) {
+                return entryResult;
             }
 
+            const entry = entryResult.value;
             entry.lastAccessed = this.now();
 
             try {
-                return Y.encodeStateVector(entry.doc);
+                return ok(Y.encodeStateVector(entry.doc));
             } catch (error: unknown) {
-                this.onError({
+                const stateError: CRDTError = {
                     code: "DOCUMENT_STATE_ENCODE_FAILED",
                     message: `Failed to encode state vector for document "${docId}".`,
                     cause: error,
-                });
+                };
 
-                return null;
+                this.onError(stateError);
+                return err(stateError);
             }
         }
 
-        public incrementClients(docId: string): void {
-            const entry = this.registry.get(docId);
-            if (!entry || entry.loadPromise) {
-                return;
+        public has(docId: string): boolean {
+            return this.registry.has(docId);
+        }
+
+        public async incrementClients(docId: string): Promise<Result<void, CRDTError>> {
+            let entry: DocEntry;
+
+            try {
+                entry = await this.getOrCreate(docId);
+            } catch (error: unknown) {
+                return err(this.normalizeError(error, "DOCUMENT_LOAD_FAILED", docId));
             }
 
             entry.clientCount += 1;
@@ -186,21 +205,34 @@
                 this.log("document:eviction-cancelled", docId, entry);
             }
 
+            return ok(undefined);
         }
 
-        public decrementClients(docId: string): void {
+        public async decrementClients(docId: string): Promise<Result<void, CRDTError>> {
             const entry = this.registry.get(docId);
-            if (!entry || entry.loadPromise) {
-                return;
+            if (!entry) {
+                return err({
+                    code: "DOCUMENT_NOT_FOUND",
+                    message: `Document "${docId}" is not present in the registry.`,
+                });
+            }
+
+            if (entry.loadPromise) {
+                try {
+                    await entry.loadPromise;
+                } catch (error: unknown) {
+                    return err(this.normalizeError(error, "DOCUMENT_LOAD_FAILED", docId));
+                }
             }
 
             if (entry.clientCount === 0) {
-                this.onError({
+                const underflowError: CRDTError = {
                     code: "DOCUMENT_CLIENT_COUNT_UNDERFLOW",
                     message: `Document "${docId}" client count cannot go below zero.`,
-                });
+                };
 
-                return;
+                this.onError(underflowError);
+                return err(underflowError);
             }
 
             entry.clientCount -= 1;
@@ -215,21 +247,26 @@
                 this.log("document:eviction-scheduled", docId, entry);
             }
 
+            return ok(undefined);
         }
 
-        public async destroy(docId: string): Promise<void> {
+        public async destroy(docId: string): Promise<Result<void, CRDTError>> {
             const existing = this.registry.get(docId);
             if (!existing) {
-                return;
+                return ok(undefined);
             }
 
             if (existing.loadPromise) {
-                await existing.loadPromise;
+                try {
+                    await existing.loadPromise;
+                } catch (error: unknown) {
+                    return err(this.normalizeError(error, "DOCUMENT_LOAD_FAILED", docId));
+                }
             }
 
             const entry = this.registry.get(docId);
             if (!entry) {
-                return;
+                return ok(undefined);
             }
 
             if (entry.evictionTimer) {
@@ -241,14 +278,17 @@
                 const flushResult = await this.flushEntry(docId, entry);
                 if (!flushResult.ok) {
                     this.onError(flushResult.error);
-                    return;
+                    return flushResult;
                 }
             }
 
             // Y.Doc retains observers internally; explicit destruction is required to release them on eviction.
             entry.doc.destroy();
             this.registry.delete(docId);
+            this.contentMemoryEstimateBytes.delete(docId);
             this.log("document:destroyed", docId, entry);
+
+            return ok(undefined);
         }
 
         private async loadDocument(docId: string, entry: DocEntry): Promise<DocEntry> {
@@ -267,6 +307,8 @@
                 try {
                     Y.applyUpdate(entry.doc, snapshot);
                 } catch (error: unknown) {
+                    this.log("document:update-failed", docId, entry);
+
                     const hydrateError: CRDTError = {
                         code: "DOCUMENT_LOAD_FAILED",
                         message: `Failed to hydrate document "${docId}" from persisted state.`,
@@ -281,6 +323,7 @@
 
             entry.loadPromise = null;
             entry.lastAccessed = this.now();
+            this.contentMemoryEstimateBytes.set(docId, snapshot?.byteLength ?? 0);
             this.log(snapshot ? "document:loaded" : "document:created", docId, entry);
 
             return entry;
@@ -310,6 +353,7 @@
             }
 
             entry.isDirty = false;
+            this.contentMemoryEstimateBytes.set(docId, state.byteLength);
             return ok(undefined);
         }
 
@@ -320,8 +364,8 @@
             }
 
             current.evictionTimer = null;
-            await this.destroy(docId);
-            if (!this.registry.has(docId)) {
+            const destroyResult = await this.destroy(docId);
+            if (destroyResult.ok && !this.registry.has(docId)) {
                 this.log("document:eviction-executed", docId, current);
             }
         }
@@ -349,23 +393,13 @@
         }
 
         private estimateRegistryMemoryBytes(): number {
-            let total = 0;
+            let contentBytes = 0;
 
-            for (const entry of this.registry.values()) {
-                total += BASE_DOC_MEMORY_BYTES;
-
-                if (entry.loadPromise) {
-                    continue;
-                }
-
-                try {
-                    total += Y.encodeStateAsUpdate(entry.doc).byteLength;
-                } catch {
-                    total += 0;
-                }
+            for (const bytes of this.contentMemoryEstimateBytes.values()) {
+                contentBytes += bytes;
             }
 
-            return total;
+            return this.registry.size * BASE_DOC_MEMORY_BYTES + contentBytes;
         }
 
         private cleanupFailedLoad(docId: string, entry: DocEntry): void {
@@ -374,7 +408,27 @@
                 this.registry.delete(docId);
             }
 
+            this.contentMemoryEstimateBytes.delete(docId);
             entry.doc.destroy();
+        }
+
+        private getLoadedEntry(docId: string): Result<DocEntry, CRDTError> {
+            const entry = this.registry.get(docId);
+            if (!entry) {
+                return err({
+                    code: "DOCUMENT_NOT_FOUND",
+                    message: `Document "${docId}" is not present in the registry.`,
+                });
+            }
+
+            if (entry.loadPromise) {
+                return err({
+                    code: "DOCUMENT_STILL_LOADING",
+                    message: `Document "${docId}" is still loading.`,
+                });
+            }
+
+            return ok(entry);
         }
 
         private normalizeError(
