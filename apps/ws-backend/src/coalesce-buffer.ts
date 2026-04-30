@@ -1,6 +1,7 @@
 import * as Y from 'yjs';
 import { DocumentManager } from './document-manager.js';
 import { WSMessageType, encodeMessage } from './protocol.js';
+import { RoomManager } from './room-manager.js';
 
 const COALESCE_INTERVAL_MS = 16;
 
@@ -14,14 +15,14 @@ interface CoalesceBuffer {
 export class CoalesceBufferManager {
   private buffers = new Map<string, CoalesceBuffer>();
   private documentManager: DocumentManager;
-  private broadcastCallback: (docId: string, message: Uint8Array, excludeClientIds: Set<string>) => void;
+  private roomManager: RoomManager;
 
   constructor(
     documentManager: DocumentManager,
-    broadcastCallback: (docId: string, message: Uint8Array, excludeClientIds: Set<string>) => void
+    roomManager: RoomManager
   ) {
     this.documentManager = documentManager;
-    this.broadcastCallback = broadcastCallback;
+    this.roomManager = roomManager;
   }
 
   /**
@@ -89,8 +90,6 @@ export class CoalesceBufferManager {
       }
 
       // 3. Broadcast merged update once to all clients in the room
-      // If we have an AI request ID, we broadcast as an AIUpdate to preserve the typing indicator.
-      // Otherwise, we broadcast as a generic Update.
       const encodedMsg = aiRequestId 
         ? encodeMessage({
             type: WSMessageType.AIUpdate,
@@ -103,9 +102,11 @@ export class CoalesceBufferManager {
           });
       
       // If only one client sent updates in this window, we can safely exclude them to save bandwidth.
-      // If multiple clients sent updates, we broadcast to everyone because everyone needs someone else's part.
-      const excludeClientIds = senders.size === 1 ? senders : new Set<string>();
-      this.broadcastCallback(docId, encodedMsg, excludeClientIds);
+      // RoomManager's current broadcast only supports single exclusion; for multi-sender windows, 
+      // we broadcast to everyone (Set is empty).
+      const excludeClientId = senders.size === 1 ? Array.from(senders)[0] : undefined;
+      
+      await this.roomManager.broadcast(docId, encodedMsg, excludeClientId);
 
     } catch (error) {
       console.error(`Error during coalescing flush for ${docId}:`, error);

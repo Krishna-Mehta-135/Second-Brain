@@ -40,6 +40,26 @@ Traditional synchronization requires sequence numbers or global locks to handle 
 - We **do not** add sequence numbers because they are redundant and would break under offline-editing scenarios.
 - The system converges regardless of the arrival order of updates, provided they are all eventually delivered.
 
+## Network Resilience & Backpressure
+
+### Head-of-Line (HOL) Blocking
+In a collaborative environment, the server must broadcast updates to many clients simultaneously. A traditional approach using sequential sends or `Promise.all` suffers from HOL blocking: if one client has a slow connection, the server's outgoing queue for that room stalls, increasing latency for everyone.
+
+Our `RoomManager` solves this by:
+1.  **Concurrent Broadcasting:** Using `Promise.allSettled` so that one failed or slow send doesn't stop others.
+2.  **Backpressure Awareness:** Monitoring the OS-level TCP send buffer via `ws.bufferedAmount`.
+
+### The `bufferedAmount` Metric
+`ws.bufferedAmount` measures the number of bytes currently queued in the kernel's send buffer. 
+- **High value (>1MB):** Indicates a congested client. The network cannot keep up with the update frequency.
+- **Action:** We skip sending the update to that specific client.
+
+### Backpressure + Coalescing
+Skipping an update is safe because of our **CRDT-First** design and **Update Coalescing**:
+- Y.js updates are idempotent and commutative.
+- When a congested client's buffer clears, they will receive a merged update in the next 16ms window that contains the entire missing state.
+- This "jump-ahead" mechanism ensures that slow clients don't degrade the experience for the rest of the room while still eventually converging to the same state.
+
 ## AI Integration
 
 AI updates are treated as first-class CRDT clients.

@@ -17,15 +17,28 @@ const DOCUMENT_PATH_PREFIX = "/ws/documents/";
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-interface ConnectionContext {
-    ws: WebSocket;
-    userId: string;
-    docId: string;
-    clientId: string;
-    connectedAt: number;
-    isAlive: boolean;
-    isOfflineClient: boolean;
-}
+import { 
+  WSMessageType, 
+  WSErrorCode, 
+  decodeMessage, 
+  encodeMessage 
+} from "./protocol.js";
+import { CoalesceBufferManager } from "./coalesce-buffer.js";
+import { RoomManager, type ConnectionContext } from "./room-manager.js";
+
+const loggerInstance = {
+    info: (ctx: any, msg: string) => logger("info", ctx, msg),
+    warn: (ctx: any, msg: string) => logger("warn", ctx, msg),
+    error: (ctx: any, msg: string) => logger("error", ctx, msg),
+};
+
+const documentManager = new DocumentManager({
+    loadSnapshot: async () => null,
+    flushSnapshot: async () => undefined,
+    onError: (error) => {
+        logger("error", { reason: error.message }, "document manager error");
+    },
+});
 
 type AuthResult =
     | { success: true; userId: string; docId: string }
@@ -49,25 +62,14 @@ interface LoggerContext {
     documentWasWarm?: boolean;
 }
 
-interface RoomManager {
-    join(ctx: ConnectionContext): Promise<boolean>;
-    leave(docId: string, clientId: string): Promise<void>;
-}
-
-const documentManager = new DocumentManager({
-    loadSnapshot: async () => null,
-    flushSnapshot: async () => undefined,
-    onError: (error) => {
-        logger("error", { reason: error.message }, "document manager error");
-    },
-});
+const roomManager = new RoomManager(documentManager, loggerInstance);
+const coalesceManager = new CoalesceBufferManager(documentManager, roomManager);
 
 const server = createServer();
 const wss = new WebSocketServer({ noServer: true });
 const allConnections = new Map<string, ConnectionContext>();
 const pendingHeartbeatAt = new Map<string, number>();
 const lastPongAt = new Map<string, number>();
-const roomManager = createRoomManager(documentManager);
 const authMiddleware = createUpgradeMiddleware(process.env.JWT_SECRET ?? "");
 
 server.on("upgrade", async (req, socket, head) => {
@@ -120,31 +122,6 @@ server.on("upgrade", async (req, socket, head) => {
         });
     });
 });
-
-import { 
-  WSMessageType, 
-  WSErrorCode, 
-  decodeMessage, 
-  encodeMessage 
-} from "./protocol.js";
-import { CoalesceBufferManager } from "./coalesce-buffer.js";
-
-const coalesceManager = new CoalesceBufferManager(
-    documentManager,
-    (docId, message, excludeClientIds) => {
-        allConnections.forEach((otherCtx) => {
-            if (
-                otherCtx.docId === docId && 
-                !excludeClientIds.has(otherCtx.clientId) &&
-                otherCtx.ws.readyState === WebSocket.OPEN
-            ) {
-                otherCtx.ws.send(message);
-            }
-        });
-    }
-);
-
-// ... (existing server/wss setup)
 
 function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
     logger(
@@ -201,14 +178,9 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
 
                 case WSMessageType.Awareness: {
                     // Awareness is volatile and usually not persisted, 
-                    // we broadcast it immediately or with shorter coalescing.
-                    // For now, simple broadcast to same room.
+                    // we broadcast it immediately with backpressure handling.
                     const encoded = encodeMessage(message);
-                    allConnections.forEach((otherCtx) => {
-                        if (otherCtx.docId === ctx.docId && otherCtx.clientId !== ctx.clientId) {
-                            otherCtx.ws.send(encoded);
-                        }
-                    });
+                    void roomManager.broadcastAwareness(ctx.docId, encoded, ctx.clientId);
                     break;
                 }
             }
@@ -290,60 +262,6 @@ function createUpgradeMiddleware(jwtSecret: string): UpgradeMiddleware {
     };
 }
 
-function createRoomManager(documentRegistry: DocumentManager): RoomManager {
-    const rooms = new Map<string, Set<string>>();
-    const membership = new Map<string, string>();
-
-    return {
-        async join(ctx: ConnectionContext): Promise<boolean> {
-            if (membership.has(ctx.clientId)) {
-                return true;
-            }
-
-            const incrementResult = await documentRegistry.incrementClients(ctx.docId);
-            if (!incrementResult.ok) {
-                logger(
-                    "error",
-                    { clientId: ctx.clientId, docId: ctx.docId, reason: incrementResult.error.message },
-                    "room join failed",
-                );
-                return false;
-            }
-
-            const room = rooms.get(ctx.docId) ?? new Set<string>();
-            room.add(ctx.clientId);
-            rooms.set(ctx.docId, room);
-            membership.set(ctx.clientId, ctx.docId);
-
-            return true;
-        },
-        async leave(docId: string, clientId: string): Promise<void> {
-            const assignedDocId = membership.get(clientId);
-            if (assignedDocId !== docId) {
-                return;
-            }
-
-            const room = rooms.get(docId);
-            if (room) {
-                room.delete(clientId);
-                if (room.size === 0) {
-                    rooms.delete(docId);
-                }
-            }
-
-            membership.delete(clientId);
-            const decrementResult = await documentRegistry.decrementClients(docId);
-            if (!decrementResult.ok) {
-                logger(
-                    "error",
-                    { clientId, docId, reason: decrementResult.error.message },
-                    "room leave failed",
-                );
-            }
-        },
-    };
-}
-
 async function registerConnection(ctx: ConnectionContext): Promise<boolean> {
     ctx.ws.on("pong", () => {
         ctx.isAlive = true;
@@ -362,11 +280,8 @@ async function registerConnection(ctx: ConnectionContext): Promise<boolean> {
     ctx.ws.on("close", cleanup);
     ctx.ws.on("error", cleanup);
 
-    const joined = await roomManager.join(ctx);
-    if (!joined) {
-        return false;
-    }
-
+    await roomManager.join(ctx.docId, ctx);
+    
     if (ctx.ws.readyState !== WebSocket.OPEN) {
         await roomManager.leave(ctx.docId, ctx.clientId);
         return false;
