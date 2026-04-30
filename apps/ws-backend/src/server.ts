@@ -1,5 +1,11 @@
 import dotenv from "dotenv";
-dotenv.config();
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, "../../../.env") });
 
 import { createServer, type IncomingMessage } from "http";
 import { randomUUID } from "crypto";
@@ -9,7 +15,7 @@ import type { Duplex } from "stream";
 
 import { DocumentManager } from "./document-manager.js";
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
+const PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 8080;
 const HEARTBEAT_INTERVAL = 30_000;
 const HEARTBEAT_TIMEOUT = 10_000;
 const HEARTBEAT_SCAN_INTERVAL = 1_000;
@@ -20,12 +26,16 @@ const UUID_PATTERN =
 import { 
   WSMessageType, 
   WSErrorCode, 
-  decodeMessage, 
   encodeMessage 
 } from "./protocol.js";
 import { CoalesceBufferManager } from "./coalesce-buffer.js";
 import { RoomManager, type ConnectionContext } from "./room-manager.js";
 import { RedisTransport } from "./redis-transport.js";
+import { TokenBucket } from "./token-bucket.js";
+import { SecurityMiddleware } from "./security-middleware.js";
+
+const CLIENT_LIMIT_CAPACITY = 50;
+const CLIENT_LIMIT_REFILL = 50;
 
 const loggerInstance = {
     info: (ctx: any, msg: string) => logger("info", ctx, msg),
@@ -112,6 +122,7 @@ server.on("upgrade", async (req, socket, head) => {
             connectedAt: Date.now(),
             isAlive: true,
             isOfflineClient,
+            bucket: new TokenBucket(CLIENT_LIMIT_CAPACITY, CLIENT_LIMIT_REFILL),
         };
 
         void registerConnection(ctx).then((registered) => {
@@ -142,14 +153,38 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
     }
 
     ws.on("message", async (data) => {
-        try {
-            // All messages are binary
-            const binaryData = data instanceof Buffer 
-                ? new Uint8Array(data) 
-                : new Uint8Array(data as ArrayBuffer);
-            
-            const message = decodeMessage(binaryData);
+        // 1. Check Message Size
+        if (!SecurityMiddleware.checkMessageSize(data)) {
+            ws.send(encodeMessage({
+                type: WSMessageType.Error,
+                code: WSErrorCode.MESSAGE_TOO_LARGE,
+                message: "Message exceeds 512KB safety limit"
+            }));
+            return;
+        }
 
+        // 2. Check Per-Client Rate Limit
+        if (!SecurityMiddleware.checkRateLimit(ctx)) {
+            ws.send(encodeMessage({
+                type: WSMessageType.Error,
+                code: WSErrorCode.RATE_LIMITED,
+                message: "Exceeded message rate limit (50/s)"
+            }));
+            return;
+        }
+
+        // 3. Parse and Validate Protocol
+        const message = SecurityMiddleware.parseMessage(data);
+        if (!message) {
+            ws.send(encodeMessage({
+                type: WSMessageType.Error,
+                code: WSErrorCode.INVALID_MESSAGE,
+                message: "Malformed protocol frame"
+            }));
+            return;
+        }
+
+        try {
             switch (message.type) {
                 case WSMessageType.Ping:
                     ws.send(encodeMessage({ type: WSMessageType.Pong }));
@@ -187,12 +222,7 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
                 }
             }
         } catch (err) {
-            logger("error", { clientId: ctx.clientId, reason: "protocol error" }, "failed to handle binary message");
-            ws.send(encodeMessage({
-                type: WSMessageType.Error,
-                code: WSErrorCode.INVALID_MESSAGE,
-                message: "Protocol violation or malformed binary frame"
-            }));
+            logger("error", { clientId: ctx.clientId, reason: "internal error" }, "unexpected failure in message loop");
         }
     });
 }

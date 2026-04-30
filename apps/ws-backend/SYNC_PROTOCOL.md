@@ -94,3 +94,33 @@ If missed updates during brief instance restarts cause visible "flicker" or perf
 - **Trigger:** Visible document gaps during instance rolling updates or high message loss in Redis.
 - **Migration:** Replace `pub.publish` with `XADD` and use `XREADGROUP` to ensure no updates are missed during transient connection losses.
 
+## Safety & Security Layer
+
+To protect against malformed data and resource exhaustion, we implement a multi-layered validation chain.
+
+### Token Bucket Rate Limiting
+We use the **Token Bucket** algorithm for rate limiting because it provides **Burst Tolerance**. 
+- **Fixed Window** (the common alternative) often drops legitimate large updates (like a user pasting a paragraph) because they happen within a single second window.
+- **Token Bucket** allows a user to "save up" tokens during idle time, permitting a burst of activity that settles back into the long-term rate limit.
+
+**Thresholds:**
+- **Per-Client:** 50 messages/s. If exceeded, updates are dropped and the client receives a `RATE_LIMITED` error.
+- **Per-Document:** 200 messages/s. 
+
+### Why Per-Document Limiting?
+Even with per-client limits, a room with 20 users could still generate 1,000 broadcasts per second (50/user * 20 users). This would saturate the event loop. The document-level bucket limits the *total* activity in a room.
+
+### Coalesce-and-Delay (The "No-Drop" Rule)
+Unlike per-client limiting, we **never drop** updates at the document level. 
+- **Reason:** Dropping a CRDT update at the room level would cause permanent divergence between clients and the server.
+- **Strategy:** If the document bucket is exhausted, we delay the coalesce flush by 16ms and retry. This effectively "slows down" the room without losing data integrity.
+
+### Message Size Guard
+Messages are capped at **512KB**. This prevents memory exhaustion attacks and ensures that no single update can block the network buffer for an extended period.
+
+### Y.js Binary Validation
+Invalid Y.js binary updates are more dangerous than malformed JSON.
+- **JSON:** A parse error is obvious and immediately halts processing.
+- **Y.js:** A malformed binary can potentially be partially applied, leading to **silent state corruption** where the document remains "valid" but contains garbage data that propagates to all clients.
+- **Defense:** All `Y.applyUpdate` calls are wrapped in strict `try/catch` blocks with high-signal logging to identify and isolate protocol violations immediately.
+

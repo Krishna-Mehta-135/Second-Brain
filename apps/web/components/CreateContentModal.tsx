@@ -54,7 +54,7 @@ export const CreateContentModal = ({open, onClose, onContentAdded}: Props) => {
 
         try {
             await axios.post(
-                "http://localhost:9898/api/v1/content",
+                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:9898/api/v1"}/content`,
                 {
                     title,
                     link: fixedLink,

@@ -33,10 +33,11 @@ export default function AuthForm({type}: AuthProps) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9898/api/v1";
             const endpoint =
                 type === "signup"
-                    ? "http://localhost:9898/api/v1/auth/register"
-                    : "http://localhost:9898/api/v1/auth/login";
+                    ? `${baseUrl}/auth/register`
+                    : `${baseUrl}/auth/login`;
 
             const payload = type === "signup" ? {username, email: credential, password} : {credential, password};
 

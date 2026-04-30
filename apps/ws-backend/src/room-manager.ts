@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import { TokenBucket } from './token-bucket.js';
 
 /**
  * 1MB Backpressure Threshold.
@@ -15,6 +16,7 @@ export interface ConnectionContext {
   connectedAt: number;
   isAlive: boolean;
   isOfflineClient: boolean;
+  bucket: TokenBucket;
 }
 
 /**

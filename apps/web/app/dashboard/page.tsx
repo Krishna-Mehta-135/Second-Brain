@@ -35,7 +35,7 @@ function Dashboard() {
 
     const fetchContent = async () => {
         try {
-            const res = await axios.get("http://localhost:9898/api/v1/content", {
+            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:9898/api/v1"}/content`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
                     "Content-Type": "application/json"
@@ -70,7 +70,7 @@ function Dashboard() {
     const handleShareBrain = async () => {
         setShareLoading(true);
         try {
-            const res = await axios.post("http://localhost:9898/api/v1/brain/share", {
+            const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:9898/api/v1"}/brain/share`, {
                 isPublic: true
             }, {
                 headers: {
@@ -103,7 +103,7 @@ function Dashboard() {
 
     const handleDeleteContent = async (id: string) => {
         try {
-            await axios.delete(`http://localhost:9898/api/v1/content/${id}`, {
+            await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:9898/api/v1"}/content/${id}`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("token")}`,
                     "Content-Type": "application/json"

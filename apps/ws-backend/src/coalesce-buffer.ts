@@ -3,8 +3,17 @@ import { DocumentManager } from './document-manager.js';
 import { WSMessageType, encodeMessage } from './protocol.js';
 import { RoomManager } from './room-manager.js';
 import { RedisTransport } from './redis-transport.js';
+import { TokenBucket } from './token-bucket.js';
 
 const COALESCE_INTERVAL_MS = 16;
+/**
+ * Per-document broadcast rate limit.
+ * Capacity: 200 messages burst, Refill: 200/s.
+ * This prevents a single room from saturating the event loop/network 
+ * even if multiple clients are typing simultaneously.
+ */
+const DOC_LIMIT_CAPACITY = 200;
+const DOC_LIMIT_REFILL = 200;
 
 interface CoalesceBuffer {
   updates: Uint8Array[];
@@ -15,6 +24,7 @@ interface CoalesceBuffer {
 
 export class CoalesceBufferManager {
   private buffers = new Map<string, CoalesceBuffer>();
+  private docBuckets = new Map<string, TokenBucket>();
   private documentManager: DocumentManager;
   private roomManager: RoomManager;
   private redisTransport: RedisTransport;
@@ -65,23 +75,41 @@ export class CoalesceBufferManager {
   /**
    * Handles updates received from other instances via Redis Pub/Sub.
    * Applied directly to the document and broadcasted to all local clients.
+   * External updates are subject to the same document-level rate limiting.
    */
   public async handleExternalUpdate(docId: string, update: Uint8Array, originClientId: string): Promise<void> {
-    // 1. Apply to local Y.Doc
+    // External updates don't use the coalesce buffer because they are 
+    // already coalesced by the originating instance. 
+    // However, we apply directly but must respect the local room's broadcast limit.
+    
+    const bucket = this.getDocBucket(docId);
+    if (!bucket.consume()) {
+      // If doc-level rate limited, we redirect to the coalesce buffer to delay
+      this.enqueueUpdate(docId, update);
+      return;
+    }
+
     const applyResult = await this.documentManager.applyUpdate(docId, update);
     if (!applyResult.ok) {
       console.error(`Failed to apply external update for ${docId}:`, applyResult.error.message);
       return;
     }
 
-    // 2. Broadcast to all local clients (no exclusion)
     const encodedMsg = encodeMessage({
       type: WSMessageType.Update,
       update: update
     });
 
     await this.roomManager.broadcast(docId, encodedMsg);
-    // DO NOT re-publish to Redis (prevents infinite loop)
+  }
+
+  private getDocBucket(docId: string): TokenBucket {
+    let bucket = this.docBuckets.get(docId);
+    if (!bucket) {
+      bucket = new TokenBucket(DOC_LIMIT_CAPACITY, DOC_LIMIT_REFILL);
+      this.docBuckets.set(docId, bucket);
+    }
+    return bucket;
   }
 
   /**
@@ -92,6 +120,17 @@ export class CoalesceBufferManager {
     const buffer = this.buffers.get(docId);
     if (!buffer || buffer.updates.length === 0) {
       this.buffers.delete(docId);
+      return;
+    }
+
+    // DOCUMENT-LEVEL RATE LIMITING: COALESCE-AND-DELAY
+    // If the document bucket is empty, we do NOT drop. We delay the flush.
+    // This preserves CRDT consistency while protecting the system.
+    const bucket = this.getDocBucket(docId);
+    if (!bucket.consume()) {
+      buffer.flushTimer = setTimeout(() => {
+        void this.flushBuffer(docId);
+      }, COALESCE_INTERVAL_MS);
       return;
     }
 
@@ -137,7 +176,6 @@ export class CoalesceBufferManager {
     } catch (error) {
       console.error(`Error during coalescing flush for ${docId}:`, error);
     } finally {
-      // If no new updates arrived during the async flush, delete the buffer entry
       if (buffer.updates.length === 0) {
         this.buffers.delete(docId);
       }
