@@ -134,6 +134,29 @@
             return ok(undefined);
         }
 
+        public async getUpdateSince(docId: string, stateVector: Uint8Array): Promise<Result<Uint8Array, CRDTError>> {
+            let entry: DocEntry;
+
+            try {
+                entry = await this.getOrCreate(docId);
+            } catch (error: unknown) {
+                return err(this.normalizeError(error, "DOCUMENT_LOAD_FAILED", docId));
+            }
+
+            try {
+                return ok(Y.encodeStateAsUpdate(entry.doc, stateVector));
+            } catch (error: unknown) {
+                const stateError: CRDTError = {
+                    code: "DOCUMENT_STATE_ENCODE_FAILED",
+                    message: `Failed to encode update for document "${docId}" since provided state vector.`,
+                    cause: error,
+                };
+
+                this.onError(stateError);
+                return err(stateError);
+            }
+        }
+
         public getState(docId: string): Result<Uint8Array, CRDTError> {
             const entryResult = this.getLoadedEntry(docId);
             if (!entryResult.ok) {
