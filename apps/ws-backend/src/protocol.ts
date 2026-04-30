@@ -1,5 +1,3 @@
-import * as Y from 'yjs';
-
 /**
  * Stable enum for binary framing. 
  * DO NOT reorder these values as they are used for binary protocol compatibility.

@@ -110,17 +110,20 @@
             }
 
             try {
-                // A malformed update must be isolated to the call site instead of surfacing as an unhandled
-                // exception that can poison the connection lifecycle around the shared in-memory document.
+                // PRODUCTION SAFETY: Invalid Y.js binary is dangerous.
+                // Silent corruption can occur if errors are not caught here.
                 Y.applyUpdate(entry.doc, update);
             } catch (error: unknown) {
-                this.log("document:update-failed", docId, entry);
-
-                return err({
+                const invalidUpdateError: CRDTError = {
                     code: "DOCUMENT_UPDATE_FAILED",
-                    message: `Failed to apply update for document "${docId}".`,
+                    message: `Malformed CRDT update for document "${docId}".`,
                     cause: error,
-                });
+                };
+                
+                this.log("document:update-failed", docId, entry);
+                this.onError(invalidUpdateError);
+
+                return err(invalidUpdateError);
             }
 
             entry.isDirty = true;

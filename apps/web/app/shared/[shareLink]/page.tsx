@@ -32,7 +32,7 @@ export default function SharedBrain() {
             try {
                 setLoading(true);
                 const response = await axios.get(
-                    `http://localhost:9898/api/v1/brain/${shareLink}`,
+                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:9898/api/v1"}/brain/${shareLink}`,
                     {
                         headers: {
                             "Content-Type": "application/json"
