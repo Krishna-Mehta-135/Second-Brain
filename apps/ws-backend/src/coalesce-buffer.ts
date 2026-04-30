@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import { DocumentManager } from './document-manager.js';
 import { WSMessageType, encodeMessage } from './protocol.js';
 import { RoomManager } from './room-manager.js';
+import { RedisTransport } from './redis-transport.js';
 
 const COALESCE_INTERVAL_MS = 16;
 
@@ -16,13 +17,16 @@ export class CoalesceBufferManager {
   private buffers = new Map<string, CoalesceBuffer>();
   private documentManager: DocumentManager;
   private roomManager: RoomManager;
+  private redisTransport: RedisTransport;
 
   constructor(
     documentManager: DocumentManager,
-    roomManager: RoomManager
+    roomManager: RoomManager,
+    redisTransport: RedisTransport
   ) {
     this.documentManager = documentManager;
     this.roomManager = roomManager;
+    this.redisTransport = redisTransport;
   }
 
   /**
@@ -59,6 +63,28 @@ export class CoalesceBufferManager {
   }
 
   /**
+   * Handles updates received from other instances via Redis Pub/Sub.
+   * Applied directly to the document and broadcasted to all local clients.
+   */
+  public async handleExternalUpdate(docId: string, update: Uint8Array, originClientId: string): Promise<void> {
+    // 1. Apply to local Y.Doc
+    const applyResult = await this.documentManager.applyUpdate(docId, update);
+    if (!applyResult.ok) {
+      console.error(`Failed to apply external update for ${docId}:`, applyResult.error.message);
+      return;
+    }
+
+    // 2. Broadcast to all local clients (no exclusion)
+    const encodedMsg = encodeMessage({
+      type: WSMessageType.Update,
+      update: update
+    });
+
+    await this.roomManager.broadcast(docId, encodedMsg);
+    // DO NOT re-publish to Redis (prevents infinite loop)
+  }
+
+  /**
    * Merges all queued updates for a document and applies them to the document manager
    * and broadcasts to all connected clients.
    */
@@ -89,7 +115,7 @@ export class CoalesceBufferManager {
         return;
       }
 
-      // 3. Broadcast merged update once to all clients in the room
+      // 3. Broadcast merged update once to all local clients in the room
       const encodedMsg = aiRequestId 
         ? encodeMessage({
             type: WSMessageType.AIUpdate,
@@ -101,32 +127,17 @@ export class CoalesceBufferManager {
             update: mergedUpdate
           });
       
-      // If only one client sent updates in this window, we can safely exclude them to save bandwidth.
-      // RoomManager's current broadcast only supports single exclusion; for multi-sender windows, 
-      // we broadcast to everyone (Set is empty).
       const excludeClientId = senders.size === 1 ? Array.from(senders)[0] : undefined;
-      
       await this.roomManager.broadcast(docId, encodedMsg, excludeClientId);
 
-    } catch (error) {
-      console.error(`Error during coalescing flush for ${docId}:`, error);
-    } finally {
-      if (buffer.updates.length === 0) {
-        this.buffers.delete(docId);
-      }
-    }
-  }
+      // 4. Redis Publish — fire and forget
+      const primaryOriginId = Array.from(senders)[0] || 'server-merged';
+      this.redisTransport.publish(docId, mergedUpdate, primaryOriginId);
 
-      // 4. Redis Publish / Persistence
-      // The documentManager.applyUpdate marks it dirty, 
-      // and the debounce logic in DocumentManager handles persistence.
-      // Cross-instance Redis sync would happen here if implemented.
-      
     } catch (error) {
       console.error(`Error during coalescing flush for ${docId}:`, error);
     } finally {
-      // If new updates arrived during the async apply/broadcast, 
-      // they will have already started a new flushTimer.
+      // If no new updates arrived during the async flush, delete the buffer entry
       if (buffer.updates.length === 0) {
         this.buffers.delete(docId);
       }

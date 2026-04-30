@@ -66,3 +66,31 @@ AI updates are treated as first-class CRDT clients.
 - AI writes flow through the same `CoalesceBufferManager`.
 - No special-case logic exists for AI writes, ensuring that the system remains DRY and maintainable.
 - The `requestId` in `AIUpdate` is purely for client-side UI tracking (e.g., showing which AI request is currently "typing").
+
+## Horizontal Scalability
+
+To support multiple backend instances, we use Redis Pub/Sub as a message bridge.
+
+### Why In-Memory Maps Fail
+In a single-instance setup, the `RoomManager` maintains an in-memory registry of all clients. In a distributed setup, clients in the same "room" (document) may be connected to different physical servers. Without a bridge, their `Y.Doc` instances would diverge as updates are only broadcast to local peers.
+
+### Redis Pub/Sub Architecture
+We use a **Fire-and-Forget** Pub/Sub model:
+1. **Local Update:** A client sends an update to Instance A.
+2. **Local Apply:** Instance A applies the update to its local `Y.Doc` and broadcasts it to other local clients.
+3. **Redis Publish:** Instance A publishes the update to a Redis channel `crdt:updates:{docId}`.
+4. **Remote Receive:** Instance B (subscribed to the same channel) receives the update, applies it to its local `Y.Doc`, and broadcasts it to its local clients.
+
+**Performance Note:** Publishing to Redis is fire-and-forget. We do not await the Redis acknowledgement in the WebSocket handler to avoid adding 5-15ms of latency to the critical path.
+
+### Failure Recovery
+If Instance B is offline when Instance A publishes, B will miss that specific update. However, the system remains eventually consistent because:
+- When Instance B restarts or a new client connects, it performs a **Two-Phase Sync Handshake**.
+- This handshake exchanges state vectors and fetches all missing data, including updates missed during the downtime.
+
+### Redis Streams Migration Path
+If missed updates during brief instance restarts cause visible "flicker" or performance issues due to heavy handshake recovery, we can migrate from Pub/Sub to **Redis Streams**.
+- **Streams Advantages:** Message persistence, consumer groups, and replay capabilities.
+- **Trigger:** Visible document gaps during instance rolling updates or high message loss in Redis.
+- **Migration:** Replace `pub.publish` with `XADD` and use `XREADGROUP` to ensure no updates are missed during transient connection losses.
+
