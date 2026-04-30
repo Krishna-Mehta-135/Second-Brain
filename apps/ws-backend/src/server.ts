@@ -128,11 +128,46 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
         "connection established",
     );
 
-    ws.on("message", (message) => {
-        const payload = message.toString();
+    // Send initial sync step 1 if requested or automatically
+    ws.on("message", async (data) => {
+        try {
+            const message = JSON.parse(data.toString());
 
-        if (payload === "ping") {
-            ws.send("pong");
+            switch (message.type) {
+                case "ping":
+                    ws.send("pong");
+                    break;
+                case "sync-step-1": {
+                    const stateVector = new Uint8Array(message.stateVector);
+                    const updateResult = await documentManager.getUpdateSince(ctx.docId, stateVector);
+                    if (updateResult.ok) {
+                        ws.send(JSON.stringify({
+                            type: "update",
+                            update: Array.from(updateResult.value)
+                        }));
+                    }
+                    break;
+                }
+                case "update": {
+                    const update = new Uint8Array(message.update);
+                    const applyResult = await documentManager.applyUpdate(ctx.docId, update);
+                    
+                    if (applyResult.ok) {
+                        // Broadcast to other clients in the same docId
+                        allConnections.forEach((otherCtx) => {
+                            if (otherCtx.docId === ctx.docId && otherCtx.clientId !== ctx.clientId) {
+                                otherCtx.ws.send(JSON.stringify({
+                                    type: "update",
+                                    update: message.update
+                                }));
+                            }
+                        });
+                    }
+                    break;
+                }
+            }
+        } catch (err) {
+            logger("error", { clientId: ctx.clientId, reason: "malformed message" }, "failed to handle message");
         }
     });
 }
