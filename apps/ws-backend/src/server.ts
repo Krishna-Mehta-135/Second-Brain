@@ -25,6 +25,7 @@ import {
 } from "./protocol.js";
 import { CoalesceBufferManager } from "./coalesce-buffer.js";
 import { RoomManager, type ConnectionContext } from "./room-manager.js";
+import { RedisTransport } from "./redis-transport.js";
 
 const loggerInstance = {
     info: (ctx: any, msg: string) => logger("info", ctx, msg),
@@ -62,8 +63,9 @@ interface LoggerContext {
     documentWasWarm?: boolean;
 }
 
+const redisTransport = new RedisTransport(process.env.REDIS_URL ?? "redis://localhost:6379", loggerInstance);
 const roomManager = new RoomManager(documentManager, loggerInstance);
-const coalesceManager = new CoalesceBufferManager(documentManager, roomManager);
+const coalesceManager = new CoalesceBufferManager(documentManager, roomManager, redisTransport);
 
 const server = createServer();
 const wss = new WebSocketServer({ noServer: true });
@@ -270,10 +272,15 @@ async function registerConnection(ctx: ConnectionContext): Promise<boolean> {
     });
 
     const cleanup = (): void => {
-        void roomManager.leave(ctx.docId, ctx.clientId);
-        allConnections.delete(ctx.clientId);
-        pendingHeartbeatAt.delete(ctx.clientId);
-        lastPongAt.delete(ctx.clientId);
+        void (async () => {
+            await roomManager.leave(ctx.docId, ctx.clientId);
+            if (roomManager.getClientCount(ctx.docId) === 0) {
+                await redisTransport.unsubscribe(ctx.docId);
+            }
+            allConnections.delete(ctx.clientId);
+            pendingHeartbeatAt.delete(ctx.clientId);
+            lastPongAt.delete(ctx.clientId);
+        })();
     };
 
     // Cleanup stays at the connection boundary so transport failures cannot leave stale room membership behind.
@@ -282,8 +289,18 @@ async function registerConnection(ctx: ConnectionContext): Promise<boolean> {
 
     await roomManager.join(ctx.docId, ctx);
     
+    // Subscribe when the first local client joins the document room
+    if (roomManager.getClientCount(ctx.docId) === 1) {
+        await redisTransport.subscribe(ctx.docId, (update, originId) => {
+            void coalesceManager.handleExternalUpdate(ctx.docId, update, originId);
+        });
+    }
+
     if (ctx.ws.readyState !== WebSocket.OPEN) {
         await roomManager.leave(ctx.docId, ctx.clientId);
+        if (roomManager.getClientCount(ctx.docId) === 0) {
+            await redisTransport.unsubscribe(ctx.docId);
+        }
         return false;
     }
 
