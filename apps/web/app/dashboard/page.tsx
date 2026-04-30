@@ -138,7 +138,7 @@ function Dashboard() {
     });
 
     return (
-        <div className="flex min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-slate-800 transition-all duration-500">
+        <div className="flex min-h-screen bg-linear-to-br from-slate-50 to-blue-50 dark:from-gray-900 dark:to-slate-800 transition-all duration-500">
             <Sidebar activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
 
             <main className="ml-76 w-full p-8 flex flex-col min-h-screen">
@@ -147,11 +147,11 @@ function Dashboard() {
                 {/* Header */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl shadow-lg">
+                        <div className="p-3 bg-linear-to-br from-purple-500 to-blue-500 rounded-xl shadow-lg">
                             <Brain className="h-8 w-8 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                            <h1 className="text-3xl font-bold bg-linear-to-br from-purple-600 to-blue-600 bg-clip-text text-transparent">
                                 Your Second Brain
                             </h1>
                             <p className="text-gray-600 dark:text-gray-400 text-sm">
@@ -216,7 +216,7 @@ function Dashboard() {
                         </div>
                     ) : content.length === 0 ? (
                         <div className="flex flex-col items-center justify-center text-center py-20">
-                            <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mb-6">
+                            <div className="w-24 h-24 bg-linear-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center mb-6">
                                 <Brain className="h-12 w-12 text-white" />
                             </div>
                             <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Your brain is empty</h2>
