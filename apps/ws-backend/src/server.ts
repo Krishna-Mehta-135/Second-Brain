@@ -121,6 +121,31 @@ server.on("upgrade", async (req, socket, head) => {
     });
 });
 
+import { 
+  WSMessageType, 
+  WSErrorCode, 
+  decodeMessage, 
+  encodeMessage 
+} from "./protocol.js";
+import { CoalesceBufferManager } from "./coalesce-buffer.js";
+
+const coalesceManager = new CoalesceBufferManager(
+    documentManager,
+    (docId, message, excludeClientIds) => {
+        allConnections.forEach((otherCtx) => {
+            if (
+                otherCtx.docId === docId && 
+                !excludeClientIds.has(otherCtx.clientId) &&
+                otherCtx.ws.readyState === WebSocket.OPEN
+            ) {
+                otherCtx.ws.send(message);
+            }
+        });
+    }
+);
+
+// ... (existing server/wss setup)
+
 function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
     logger(
         "info",
@@ -128,46 +153,72 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
         "connection established",
     );
 
-    // Send initial sync step 1 if requested or automatically
+    // Phase 1 of Sync Handshake: Server sends its state vector to the client
+    const serverStateVectorResult = documentManager.getStateVector(ctx.docId);
+    if (serverStateVectorResult.ok) {
+        ws.send(encodeMessage({
+            type: WSMessageType.SyncStep1,
+            stateVector: serverStateVectorResult.value
+        }));
+    }
+
     ws.on("message", async (data) => {
         try {
-            const message = JSON.parse(data.toString());
+            // All messages are binary
+            const binaryData = data instanceof Buffer 
+                ? new Uint8Array(data) 
+                : new Uint8Array(data as ArrayBuffer);
+            
+            const message = decodeMessage(binaryData);
 
             switch (message.type) {
-                case "ping":
-                    ws.send("pong");
+                case WSMessageType.Ping:
+                    ws.send(encodeMessage({ type: WSMessageType.Pong }));
                     break;
-                case "sync-step-1": {
-                    const stateVector = new Uint8Array(message.stateVector);
-                    const updateResult = await documentManager.getUpdateSince(ctx.docId, stateVector);
-                    if (updateResult.ok) {
-                        ws.send(JSON.stringify({
-                            type: "update",
-                            update: Array.from(updateResult.value)
+                
+                case WSMessageType.SyncStep1: {
+                    // Phase 2: Client sent its state vector. 
+                    // Server computes the diff and sends it back (Step 2).
+                    const diffResult = await documentManager.getUpdateSince(ctx.docId, message.stateVector);
+                    if (diffResult.ok) {
+                        ws.send(encodeMessage({
+                            type: WSMessageType.SyncStep2,
+                            update: diffResult.value
                         }));
                     }
                     break;
                 }
-                case "update": {
-                    const update = new Uint8Array(message.update);
-                    const applyResult = await documentManager.applyUpdate(ctx.docId, update);
-                    
-                    if (applyResult.ok) {
-                        // Broadcast to other clients in the same docId
-                        allConnections.forEach((otherCtx) => {
-                            if (otherCtx.docId === ctx.docId && otherCtx.clientId !== ctx.clientId) {
-                                otherCtx.ws.send(JSON.stringify({
-                                    type: "update",
-                                    update: message.update
-                                }));
-                            }
-                        });
-                    }
+
+                case WSMessageType.SyncStep2:
+                case WSMessageType.Update:
+                case WSMessageType.AIUpdate: {
+                    // Apply to local doc and broadcast via coalesce buffer
+                    // AI updates are treated identical to user updates for CRDT
+                    const requestId = message.type === WSMessageType.AIUpdate ? message.requestId : undefined;
+                    coalesceManager.enqueueUpdate(ctx.docId, message.update, ctx.clientId, requestId);
+                    break;
+                }
+
+                case WSMessageType.Awareness: {
+                    // Awareness is volatile and usually not persisted, 
+                    // we broadcast it immediately or with shorter coalescing.
+                    // For now, simple broadcast to same room.
+                    const encoded = encodeMessage(message);
+                    allConnections.forEach((otherCtx) => {
+                        if (otherCtx.docId === ctx.docId && otherCtx.clientId !== ctx.clientId) {
+                            otherCtx.ws.send(encoded);
+                        }
+                    });
                     break;
                 }
             }
         } catch (err) {
-            logger("error", { clientId: ctx.clientId, reason: "malformed message" }, "failed to handle message");
+            logger("error", { clientId: ctx.clientId, reason: "protocol error" }, "failed to handle binary message");
+            ws.send(encodeMessage({
+                type: WSMessageType.Error,
+                code: WSErrorCode.INVALID_MESSAGE,
+                message: "Protocol violation or malformed binary frame"
+            }));
         }
     });
 }
