@@ -101,9 +101,17 @@ const deleteContent = asyncHandler(async (req: Request, res: Response) => {
     
     // Delete the content
     await prisma.content.delete({ where: { id: contentId } });
-    
-    return res.status(200).json(
-        new ApiResponse(200, null, "Content deleted successfully")
+
+    // Also delete the CRDT document if it exists and is of type 'document'
+    if (content.type === "document") {
+        try {
+            await prisma.document.delete({ where: { id: contentId } });
+        } catch (e) {
+            // Document might not exist if it was never edited, ignore
+        }
+    }
+
+    return res.status(200).json(        new ApiResponse(200, null, "Content deleted successfully")
     );
 });
 

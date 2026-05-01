@@ -14,6 +14,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { Duplex } from "stream";
 
 import { DocumentManager } from "./document-manager.js";
+import { PrismaRepository, PersistenceService } from "@repo/db";
 
 const PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 8080;
 const HEARTBEAT_INTERVAL = 30_000;
@@ -43,9 +44,25 @@ const loggerInstance = {
     error: (ctx: any, msg: string) => logger("error", ctx, msg),
 };
 
+const repository = new PrismaRepository();
+const persistenceService = new PersistenceService(repository, loggerInstance);
+
 const documentManager = new DocumentManager({
-    loadSnapshot: async () => null,
-    flushSnapshot: async () => undefined,
+    loadSnapshot: async (docId) => {
+        const result = await repository.load(docId);
+        return result?.state ?? null;
+    },
+    flushSnapshot: async (docId, state) => {
+        // Immediate flush (used on destroy/eviction)
+        await persistenceService.flush(docId, () => state);
+    },
+    onUpdate: (docId) => {
+        // Debounced flush (used on every change)
+        persistenceService.scheduleWrite(docId, () => {
+            const result = documentManager.getState(docId);
+            return result.ok ? result.value : new Uint8Array();
+        });
+    },
     onError: (error) => {
         logger("error", { reason: error.message }, "document manager error");
     },
@@ -268,6 +285,29 @@ wss.on("close", () => {
 server.listen(PORT, () => {
     logger("info", {}, `WebSocket server is running on ws://localhost:${PORT}`);
 });
+
+async function shutdown() {
+    loggerInstance.info({}, "persistence:shutdown-flush-start");
+    
+    // Stop accepting new connections
+    server.close();
+    wss.close();
+    
+    // 1. Flush any pending coalesce buffers to DocumentManager
+    await coalesceManager.flushAll();
+    
+    // 2. Flush all dirty documents from DocumentManager to DB
+    await persistenceService.flushAll((docId) => {
+        const result = documentManager.getState(docId);
+        return result.ok ? result.value : null;
+    });
+
+    loggerInstance.info({}, "persistence:shutdown-flush-complete");
+    process.exit(0);
+}
+
+process.on("SIGTERM", () => void shutdown());
+process.on("SIGINT", () => void shutdown());
 
 function createUpgradeMiddleware(jwtSecret: string): UpgradeMiddleware {
     return async (req: IncomingMessage): Promise<AuthResult> => {

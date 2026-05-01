@@ -14,6 +14,7 @@
     "@repo/ui": "workspace:*",
     "@tailwindcss/postcss": "^4.2.4",
     "axios": "^1.15.2",
+    "dotenv": "^17.4.2",
     "framer-motion": "^12.38.0",
     "idb": "^8.0.3",
     "lucide-react": "^1.14.0",
