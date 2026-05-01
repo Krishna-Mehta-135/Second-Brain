@@ -11,6 +11,8 @@ export enum WSMessageType {
   Error = 5,
   Ping = 6,
   Pong = 7,
+  AIRequest = 8,
+  AICancel = 9,
 }
 
 export enum WSErrorCode {
@@ -20,6 +22,7 @@ export enum WSErrorCode {
   INVALID_MESSAGE = 'INVALID_MESSAGE',
   UNAUTHORIZED = 'UNAUTHORIZED',
   DOC_NOT_FOUND = 'DOC_NOT_FOUND',
+  AI_ERROR = 'AI_ERROR',
 }
 
 export type WSMessage =
@@ -30,7 +33,9 @@ export type WSMessage =
   | { type: WSMessageType.AIUpdate; update: Uint8Array; requestId: string }
   | { type: WSMessageType.Error; code: WSErrorCode; message: string }
   | { type: WSMessageType.Ping }
-  | { type: WSMessageType.Pong };
+  | { type: WSMessageType.Pong }
+  | { type: WSMessageType.AIRequest; prompt: string; insertPosition: { type: 'cursor'; offset: number; } | { type: 'append' } | { type: 'replace'; startOffset: number; endOffset: number; }; requestId: string }
+  | { type: WSMessageType.AICancel; requestId: string };
 
 /**
  * Encodes a message into the binary format: [1 byte: type] [payload]
@@ -57,6 +62,15 @@ export function encodeMessage(message: WSMessage): Uint8Array {
       payload[0] = requestIdBytes.length;
       payload.set(requestIdBytes, 1);
       payload.set(message.update, 1 + requestIdBytes.length);
+      break;
+    }
+    case WSMessageType.AIRequest: {
+      const json = JSON.stringify({ prompt: message.prompt, insertPosition: message.insertPosition, requestId: message.requestId });
+      payload = new TextEncoder().encode(json);
+      break;
+    }
+    case WSMessageType.AICancel: {
+      payload = new TextEncoder().encode(message.requestId);
       break;
     }
     case WSMessageType.Error: {
@@ -103,6 +117,15 @@ export function decodeMessage(data: Uint8Array): WSMessage {
       const requestId = new TextDecoder().decode(payload.subarray(1, 1 + requestIdLen));
       const update = new Uint8Array(payload.subarray(1 + requestIdLen));
       return { type: WSMessageType.AIUpdate, update, requestId };
+    }
+    case WSMessageType.AIRequest: {
+      const json = new TextDecoder().decode(payload);
+      const decoded = JSON.parse(json);
+      return { type: WSMessageType.AIRequest, prompt: decoded.prompt, insertPosition: decoded.insertPosition, requestId: decoded.requestId };
+    }
+    case WSMessageType.AICancel: {
+      const requestId = new TextDecoder().decode(payload);
+      return { type: WSMessageType.AICancel, requestId };
     }
     case WSMessageType.Error: {
       const { code, message } = JSON.parse(new TextDecoder().decode(payload));
