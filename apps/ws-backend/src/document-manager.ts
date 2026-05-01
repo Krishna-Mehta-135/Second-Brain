@@ -1,6 +1,8 @@
     import * as Y from "yjs";
+    import { mergeUpdates, applyUpdateSafe } from "@repo/crdt";
 
     const DEFAULT_EVICTION_TTL_MS = 45_000;
+
     const BASE_DOC_MEMORY_BYTES = 2 * 1024 * 1024;
 
     export interface DocEntry {
@@ -115,7 +117,10 @@
             try {
                 // PRODUCTION SAFETY: Invalid Y.js binary is dangerous.
                 // Silent corruption can occur if errors are not caught here.
-                Y.applyUpdate(entry.doc, update);
+                const result = applyUpdateSafe(entry.doc, update);
+                if (!result.ok) {
+                    throw new Error(result.error);
+                }
             } catch (error: unknown) {
                 const invalidUpdateError: CRDTError = {
                     code: "DOCUMENT_UPDATE_FAILED",

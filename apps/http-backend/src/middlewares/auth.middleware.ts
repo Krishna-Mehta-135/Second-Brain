@@ -23,10 +23,14 @@ const protect = asyncHandler(async (req: Request, res: Response, next: NextFunct
     if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
         try {
             const token = req.headers.authorization.split(" ")[1];
+            if (!token) {
+                return res.status(401).json(new ApiResponse(401, null, "Not authorized. Invalid token format."));
+            }
             if (!process.env.JWT_SECRET) {
                 throw new Error("JWT_SECRET is not defined in environment variables.");
             }
-            const decoded = jwt.verify(token, process.env.JWT_SECRET) as unknown as JwtPayload;
+            const secret = process.env.JWT_SECRET;
+            const decoded = jwt.verify(token, secret!) as unknown as JwtPayload;
             
             const user = await prisma.user.findUnique({
                 where: { id: decoded.id },

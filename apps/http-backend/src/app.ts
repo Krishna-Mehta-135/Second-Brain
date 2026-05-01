@@ -2,13 +2,14 @@ import dotenv from "dotenv";
 import path from "path";
 dotenv.config({ path: path.join(__dirname, "../../../.env") });
 
-import express from "express";
+import express, { Express } from "express";
 import cors from "cors";
-import {authRouter} from "./routers/auth.routes";
-import {contentRouter} from "./routers/content.routes";
-import {brainRouter} from "./routers/brain.routes";
+import { authRouter } from "./routers/auth.routes.js";
+import { contentRouter } from "./routers/content.routes.js";
+import { brainRouter } from "./routers/brain.routes.js";
 
-const app = express();
+const app: Express = express();
+
 
 // CORS Configuration
 app.use(

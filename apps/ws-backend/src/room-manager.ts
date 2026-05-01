@@ -1,5 +1,6 @@
 import { WebSocket } from 'ws';
 import { TokenBucket } from './token-bucket.js';
+import { ConnectionContext as SharedConnectionContext } from "@repo/types";
 
 /**
  * 1MB Backpressure Threshold.
@@ -8,14 +9,8 @@ import { TokenBucket } from './token-bucket.js';
  */
 const MAX_BUFFER_BYTES = 1_048_576;
 
-export interface ConnectionContext {
+export interface ConnectionContext extends SharedConnectionContext {
   ws: WebSocket;
-  userId: string;
-  docId: string;
-  clientId: string;
-  connectedAt: number;
-  isAlive: boolean;
-  isOfflineClient: boolean;
   bucket: TokenBucket;
 }
 
