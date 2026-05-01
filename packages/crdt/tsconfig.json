@@ -5,7 +5,9 @@
     "rootDir": "./src",
     "ignoreDeprecations": "5.0",
     "composite": true,
-    "paths": {}
+    "paths": {
+      "@repo/*": ["../*/src/index.ts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
