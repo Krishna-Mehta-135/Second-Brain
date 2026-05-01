@@ -1,7 +1,7 @@
 import { WSMessage, WSErrorCode, InsertPosition } from "@repo/types";
 
 /**
- * Internal enum for binary framing. 
+ * Internal enum for binary framing.
  */
 enum BinaryType {
   SyncStep1 = 0,
@@ -16,21 +16,21 @@ enum BinaryType {
   AICancel = 9,
 }
 
-const TypeMap: Record<WSMessage['type'], BinaryType> = {
-  'sync-step-1': BinaryType.SyncStep1,
-  'sync-step-2': BinaryType.SyncStep2,
-  'update': BinaryType.Update,
-  'awareness': BinaryType.Awareness,
-  'ai-update': BinaryType.AIUpdate,
-  'error': BinaryType.Error,
-  'ping': BinaryType.Ping,
-  'pong': BinaryType.Pong,
-  'ai-request': BinaryType.AIRequest,
-  'ai-cancel': BinaryType.AICancel,
+const TypeMap: Record<WSMessage["type"], BinaryType> = {
+  "sync-step-1": BinaryType.SyncStep1,
+  "sync-step-2": BinaryType.SyncStep2,
+  update: BinaryType.Update,
+  awareness: BinaryType.Awareness,
+  "ai-update": BinaryType.AIUpdate,
+  error: BinaryType.Error,
+  ping: BinaryType.Ping,
+  pong: BinaryType.Pong,
+  "ai-request": BinaryType.AIRequest,
+  "ai-cancel": BinaryType.AICancel,
 };
 
-const ReverseTypeMap: Record<number, WSMessage['type']> = Object.fromEntries(
-  Object.entries(TypeMap).map(([k, v]) => [v, k as WSMessage['type']])
+const ReverseTypeMap: Record<number, WSMessage["type"]> = Object.fromEntries(
+  Object.entries(TypeMap).map(([k, v]) => [v, k as WSMessage["type"]]),
 );
 
 /**
@@ -39,50 +39,65 @@ const ReverseTypeMap: Record<number, WSMessage['type']> = Object.fromEntries(
  */
 export class ProtocolCodec {
   public static encode(message: WSMessage): Uint8Array {
-    const binaryType = TypeMap[message.type];
+    const binaryTypeMaybe = TypeMap[message.type];
+    if (binaryTypeMaybe === undefined) {
+      throw new Error(`Unknown message type: ${message.type}`);
+    }
+    // After the undefined check, TS cannot narrow a const through subsequent
+    // statements due to noUncheckedIndexedAccess — use a narrowed binding.
+    const binaryType: BinaryType = binaryTypeMaybe;
     let payload: Uint8Array;
 
     switch (message.type) {
-      case 'sync-step-1':
+      case "sync-step-1":
         payload = message.stateVector;
         break;
-      case 'sync-step-2':
-      case 'update':
+      case "sync-step-2":
+      case "update":
         payload = message.update;
         break;
-      case 'awareness':
+      case "awareness":
         payload = message.state;
         break;
-      case 'ai-update': {
+      case "ai-update": {
         const requestIdBytes = new TextEncoder().encode(message.requestId);
-        payload = new Uint8Array(2 + requestIdBytes.length + message.update.length);
+        payload = new Uint8Array(
+          2 + requestIdBytes.length + message.update.length,
+        );
         payload[0] = requestIdBytes.length;
         payload[1] = message.isDone ? 1 : 0;
         payload.set(requestIdBytes, 2);
         payload.set(message.update, 2 + requestIdBytes.length);
         break;
       }
-      case 'ai-request': {
-        const json = JSON.stringify({ prompt: message.prompt, insertPosition: message.insertPosition, requestId: message.requestId });
+      case "ai-request": {
+        const json = JSON.stringify({
+          prompt: message.prompt,
+          insertPosition: message.insertPosition,
+          requestId: message.requestId,
+        });
         payload = new TextEncoder().encode(json);
         break;
       }
-      case 'ai-cancel': {
+      case "ai-cancel": {
         payload = new TextEncoder().encode(message.requestId);
         break;
       }
-      case 'error': {
-        const errorPayload = JSON.stringify({ code: message.code, message: message.message });
+      case "error": {
+        const errorPayload = JSON.stringify({
+          code: message.code,
+          message: message.message,
+        });
         payload = new TextEncoder().encode(errorPayload);
         break;
       }
-      case 'ping':
-      case 'pong':
+      case "ping":
+      case "pong":
         payload = new Uint8Array(0);
         break;
       default: {
-        const _: never = message;
-        throw new Error('Unknown message type');
+        const _exhaustiveCheck: never = message;
+        throw new Error("Unknown message type");
       }
     }
 
@@ -93,11 +108,11 @@ export class ProtocolCodec {
   }
 
   public static decode(data: Uint8Array): WSMessage {
-    if (data.length === 0) throw new Error('Empty message');
-    
-    const binaryType = data[0];
-    if (binaryType === undefined) throw new Error('Message too short');
-    
+    if (data.length === 0) throw new Error("Empty message");
+
+    // noUncheckedIndexedAccess makes data[0] return number|undefined;
+    // the length check above guarantees it's defined.
+    const binaryType = data[0] as number;
     const type = ReverseTypeMap[binaryType];
     const payload = data.subarray(1);
 
@@ -106,40 +121,52 @@ export class ProtocolCodec {
     }
 
     switch (type) {
-      case 'sync-step-1':
+      case "sync-step-1":
         return { type, stateVector: new Uint8Array(payload) };
-      case 'sync-step-2':
+      case "sync-step-2":
         return { type, update: new Uint8Array(payload) };
-      case 'update':
+      case "update":
         return { type, update: new Uint8Array(payload) };
-      case 'awareness':
+      case "awareness":
         return { type, state: new Uint8Array(payload) };
-      case 'ai-update': {
+      case "ai-update": {
         const requestIdLen = payload[0] ?? 0;
         const isDone = payload[1] === 1;
-        const requestId = new TextDecoder().decode(payload.subarray(2, 2 + requestIdLen));
+        const requestId = new TextDecoder().decode(
+          payload.subarray(2, 2 + requestIdLen),
+        );
         const update = new Uint8Array(payload.subarray(2 + requestIdLen));
         return { type, update, requestId, isDone };
       }
-      case 'ai-request': {
+      case "ai-request": {
         const json = new TextDecoder().decode(payload);
         const decoded = JSON.parse(json);
-        return { type, prompt: decoded.prompt, insertPosition: decoded.insertPosition as InsertPosition, requestId: decoded.requestId };
+        return {
+          type,
+          prompt: decoded.prompt,
+          insertPosition: decoded.insertPosition as InsertPosition,
+          requestId: decoded.requestId,
+        };
       }
-      case 'ai-cancel': {
+      case "ai-cancel": {
         const requestId = new TextDecoder().decode(payload);
         return { type, requestId };
       }
-      case 'error': {
-        const { code, message } = JSON.parse(new TextDecoder().decode(payload));
-        return { type, code: code as WSErrorCode, message };
+      case "error": {
+        // JSON.parse returns `any`; cast to a known shape to avoid leaking
+        // `any` into the return type which breaks exhaustive checking.
+        const parsed = JSON.parse(new TextDecoder().decode(payload)) as {
+          code: WSErrorCode;
+          message: string;
+        };
+        return { type, code: parsed.code, message: parsed.message };
       }
-      case 'ping':
+      case "ping":
         return { type };
-      case 'pong':
+      case "pong":
         return { type };
       default: {
-        const _: never = type;
+        const _exhaustiveCheck: never = type;
         throw new Error(`Unhandled message type: ${type}`);
       }
     }

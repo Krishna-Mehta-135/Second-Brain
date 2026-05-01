@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {}
+  },
+  "references": [
+    { "path": "../../packages/db" },
+    { "path": "../../packages/types" }
+  ]
+}

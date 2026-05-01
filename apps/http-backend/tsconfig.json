@@ -3,12 +3,9 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "ignoreDeprecations": "5.0"
+    "ignoreDeprecations": "5.0",
+    "paths": {}
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../../packages/db" },
-    { "path": "../../packages/types" }
-  ]
+  "exclude": ["node_modules", "dist"]
 }

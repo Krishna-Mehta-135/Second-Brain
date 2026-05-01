@@ -58,18 +58,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Turbo local cache: key is OS + lockfile hash so cache hits survive
+      # across commits on the same dependency tree. SHA-based keys always miss.
       - name: Cache Turbo
         uses: actions/cache@v4
         with:
           path: .turbo
-          key: turbo-${{ github.sha }}
-          restore-keys: turbo-
+          key: turbo-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            turbo-${{ runner.os }}-
 
-      - name: Typecheck
-        run: pnpm turbo typecheck
-
-      - name: Lint
-        run: pnpm turbo lint
+      # Run typecheck + lint together so Turbo can parallelise them.
+      # Both depend on ^build via turbo.json, so shared upstream builds are
+      # deduped inside a single turbo invocation.
+      - name: Typecheck & Lint
+        run: pnpm turbo typecheck lint
 
       - name: Test
         run: pnpm turbo test
@@ -80,6 +83,8 @@ jobs:
           JWT_SECRET: test-secret-not-for-production
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_TEST }}
 
+      # Build after test: Turbo will cache-hit all packages already built
+      # as transitive deps of typecheck/test, so only app bundles are rebuilt.
       - name: Build
         run: pnpm turbo build
 
@@ -88,35 +93,30 @@ jobs:
     runs-on: ubuntu-latest
     needs: ci
 
+    strategy:
+      # Build all three images in parallel; fail-fast so a broken Dockerfile
+      # doesn't waste time waiting for the other two to finish.
+      fail-fast: true
+      matrix:
+        include:
+          - name: http-backend
+            file: apps/http-backend/Dockerfile
+          - name: ws-backend
+            file: apps/ws-backend/Dockerfile
+          - name: web
+            file: apps/web/Dockerfile
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build HTTP Backend image
+      - name: Build ${{ matrix.name }} image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: apps/http-backend/Dockerfile
+          file: ${{ matrix.file }}
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build WS Backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/ws-backend/Dockerfile
-          push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build Web image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max
