@@ -1,10 +1,12 @@
 {
   "extends": "../../packages/config/tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
+    "noEmit": true,
     "ignoreDeprecations": "5.0",
-    "paths": {}
+    "paths": {
+      "@repo/types": ["../../packages/types/src/index.ts"],
+      "@repo/db": ["../../packages/db/src/index.ts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

@@ -4,10 +4,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "ignoreDeprecations": "5.0",
-    "composite": true,
-    "paths": {
-      "@repo/*": ["../*/src/index.ts"]
-    }
+    "composite": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
