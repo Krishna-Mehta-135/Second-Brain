@@ -54,6 +54,7 @@
     export interface DocumentManagerOptions {
         loadSnapshot: (docId: string) => Promise<Uint8Array | null>;
         flushSnapshot: (docId: string, state: Uint8Array) => Promise<void>;
+        onUpdate?: (docId: string) => void;
         evictionTtlMs?: number;
         logger?: (entry: StructuredLogEntry) => void;
         onError?: (error: CRDTError) => void;
@@ -65,6 +66,7 @@
         private readonly contentMemoryEstimateBytes = new Map<string, number>();
         private readonly loadSnapshot: DocumentManagerOptions["loadSnapshot"];
         private readonly flushSnapshot: DocumentManagerOptions["flushSnapshot"];
+        private readonly onUpdate: DocumentManagerOptions["onUpdate"];
         private readonly evictionTtlMs: number;
         private readonly logger: NonNullable<DocumentManagerOptions["logger"]>;
         private readonly onError: NonNullable<DocumentManagerOptions["onError"]>;
@@ -73,6 +75,7 @@
         public constructor(options: DocumentManagerOptions) {
             this.loadSnapshot = options.loadSnapshot;
             this.flushSnapshot = options.flushSnapshot;
+            this.onUpdate = options.onUpdate;
             this.evictionTtlMs = options.evictionTtlMs ?? DEFAULT_EVICTION_TTL_MS;
             this.logger = options.logger ?? ((entry) => console.log(JSON.stringify(entry)));
             this.onError = options.onError ?? (() => undefined);
@@ -133,6 +136,10 @@
                 (this.contentMemoryEstimateBytes.get(docId) ?? 0) + update.byteLength,
             );
             this.log("document:update-applied", docId, entry);
+
+            if (this.onUpdate) {
+                this.onUpdate(docId);
+            }
 
             return ok(undefined);
         }
