@@ -1,4 +1,6 @@
 import * as Y from 'yjs';
+import { ProtocolCodec, applyUpdateSafe } from '@repo/crdt';
+import { WSMessage } from '@repo/types';
 import { 
   saveDocumentState, 
   getDocumentState, 
@@ -26,7 +28,7 @@ export class DocumentSyncManager {
     // 1. Restore from IndexedDB immediately for instant load
     const saved = await getDocumentState(this.docId);
     if (saved) {
-      Y.applyUpdate(this.doc, saved.state);
+      applyUpdateSafe(this.doc, saved.state);
     }
 
     // 2. Setup Y.js update listener
@@ -78,18 +80,10 @@ export class DocumentSyncManager {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    // Use x-client-state header to signal offline reconnect
     const wsUrl = `ws://localhost:8080/ws/documents/${this.docId}?token=${token}`;
     
-    // Note: Standard WebSocket API doesn't support custom headers easily.
-    // We pass it in query or expect the server to handle the first message as a handshake.
-    // However, the prompt mentioned setting a header:
-    // "Set the header `x-client-state: offline-reconnect` on reconnect"
-    // Since native WebSockets in browser don't support headers, 
-    // we might need to use a library or put it in the protocol/query.
-    // For now, I'll follow the prompt's logic as closely as possible.
-    
     this.ws = new WebSocket(wsUrl);
+    this.ws.binaryType = 'arraybuffer';
     
     this.ws.onopen = () => {
       console.log('WebSocket connected');
@@ -97,23 +91,38 @@ export class DocumentSyncManager {
     };
 
     this.ws.onmessage = (event) => {
-      // Handle incoming Y.js updates or sync steps
-      // This is a simplified implementation
-      const message = JSON.parse(event.data);
-      if (message.type === 'update') {
-        Y.applyUpdate(this.doc, new Uint8Array(message.update));
+      const data = new Uint8Array(event.data as ArrayBuffer);
+      const message = ProtocolCodec.decode(data);
+      
+      switch (message.type) {
+        case 'sync-step-1': {
+          const update = Y.encodeStateAsUpdate(this.doc, message.stateVector);
+          this.sendMessage({ type: 'sync-step-2', update });
+          break;
+        }
+        case 'sync-step-2':
+        case 'update':
+        case 'ai-update':
+          applyUpdateSafe(this.doc, message.update);
+          break;
+        case 'error':
+          console.error(`WebSocket Error [${message.code}]: ${message.message}`);
+          break;
       }
     };
   }
 
-  private sendSyncStep1() {
+  private sendMessage(message: WSMessage) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    
+    this.ws.send(ProtocolCodec.encode(message));
+  }
+
+  private sendSyncStep1() {
     const stateVector = Y.encodeStateVector(this.doc);
-    this.ws.send(JSON.stringify({
+    this.sendMessage({
       type: 'sync-step-1',
-      stateVector: Array.from(stateVector)
-    }));
+      stateVector
+    });
   }
 
   public async flushPendingUpdates() {
@@ -123,21 +132,20 @@ export class DocumentSyncManager {
     
     if (pending.length > this.MAX_PENDING_UPDATES) {
       console.warn('Too many pending updates, falling back to full state sync');
-      // In a real app, we might want to consolidate these or do a full state sync
     }
 
     for (const item of pending) {
       try {
-        this.ws.send(JSON.stringify({
+        this.sendMessage({
           type: 'update',
-          update: Array.from(item.update)
-        }));
+          update: item.update
+        });
         if (item.id !== undefined) {
           await deletePendingUpdate(item.id);
         }
       } catch (error) {
         console.error('Failed to flush update:', error);
-        break; // Stop flushing if we hit an error
+        break;
       }
     }
   }

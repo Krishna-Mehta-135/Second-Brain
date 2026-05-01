@@ -8,10 +8,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
-    "check-types": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@repo/ui": "workspace:*",
+    "@repo/types": "workspace:*",
+    "@repo/crdt": "workspace:*",
     "@tailwindcss/postcss": "^4.2.4",
     "axios": "^1.15.2",
     "dotenv": "^17.4.2",
@@ -26,8 +28,7 @@
     "yjs": "^13.6.30"
   },
   "devDependencies": {
-    "@repo/eslint-config": "workspace:*",
-    "@repo/typescript-config": "workspace:*",
+    "@repo/config": "workspace:*",
     "@types/node": "^22.15.3",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",

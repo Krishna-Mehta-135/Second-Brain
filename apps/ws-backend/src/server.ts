@@ -25,16 +25,13 @@ const DOCUMENT_PATH_PREFIX = "/ws/documents/";
 const UUID_PATTERN =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-import { 
-  WSMessageType, 
-  WSErrorCode, 
-  encodeMessage 
-} from "./protocol.js";
+import { encodeMessage, WSMessage, WSErrorCode } from "./protocol.js";
 import { CoalesceBufferManager } from "./coalesce-buffer.js";
 import { RoomManager, type ConnectionContext } from "./room-manager.js";
 import { RedisTransport } from "./redis-transport.js";
 import { TokenBucket } from "./token-bucket.js";
 import { SecurityMiddleware } from "./security-middleware.js";
+import { InsertPosition } from "@repo/types";
 
 const CLIENT_LIMIT_CAPACITY = 50;
 const CLIENT_LIMIT_REFILL = 50;
@@ -167,7 +164,7 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
     const serverStateVectorResult = documentManager.getStateVector(ctx.docId);
     if (serverStateVectorResult.ok) {
         ws.send(encodeMessage({
-            type: WSMessageType.SyncStep1,
+            type: 'sync-step-1',
             stateVector: serverStateVectorResult.value
         }));
     }
@@ -176,8 +173,8 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
         // 1. Check Message Size
         if (!SecurityMiddleware.checkMessageSize(data)) {
             ws.send(encodeMessage({
-                type: WSMessageType.Error,
-                code: WSErrorCode.MESSAGE_TOO_LARGE,
+                type: 'error',
+                code: 'MESSAGE_TOO_LARGE',
                 message: "Message exceeds 512KB safety limit"
             }));
             return;
@@ -186,8 +183,8 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
         // 2. Check Per-Client Rate Limit
         if (!SecurityMiddleware.checkRateLimit(ctx)) {
             ws.send(encodeMessage({
-                type: WSMessageType.Error,
-                code: WSErrorCode.RATE_LIMITED,
+                type: 'error',
+                code: 'RATE_LIMITED',
                 message: "Exceeded message rate limit (50/s)"
             }));
             return;
@@ -197,8 +194,8 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
         const message = SecurityMiddleware.parseMessage(data);
         if (!message) {
             ws.send(encodeMessage({
-                type: WSMessageType.Error,
-                code: WSErrorCode.INVALID_MESSAGE,
+                type: 'error',
+                code: 'INVALID_MESSAGE',
                 message: "Malformed protocol frame"
             }));
             return;
@@ -206,34 +203,34 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
 
         try {
             switch (message.type) {
-                case WSMessageType.Ping:
-                    ws.send(encodeMessage({ type: WSMessageType.Pong }));
+                case 'ping':
+                    ws.send(encodeMessage({ type: 'pong' }));
                     break;
                 
-                case WSMessageType.SyncStep1: {
+                case 'sync-step-1': {
                     // Phase 2: Client sent its state vector. 
                     // Server computes the diff and sends it back (Step 2).
                     const diffResult = await documentManager.getUpdateSince(ctx.docId, message.stateVector);
                     if (diffResult.ok) {
                         ws.send(encodeMessage({
-                            type: WSMessageType.SyncStep2,
+                            type: 'sync-step-2',
                             update: diffResult.value
                         }));
                     }
                     break;
                 }
 
-                case WSMessageType.SyncStep2:
-                case WSMessageType.Update:
-                case WSMessageType.AIUpdate: {
+                case 'sync-step-2':
+                case 'update':
+                case 'ai-update': {
                     // Apply to local doc and broadcast via coalesce buffer
                     // AI updates are treated identical to user updates for CRDT
-                    const requestId = message.type === WSMessageType.AIUpdate ? message.requestId : undefined;
+                    const requestId = message.type === 'ai-update' ? message.requestId : undefined;
                     coalesceManager.enqueueUpdate(ctx.docId, message.update, ctx.clientId, requestId);
                     break;
                 }
 
-                case WSMessageType.Awareness: {
+                case 'awareness': {
                     // Awareness is volatile and usually not persisted, 
                     // we broadcast it immediately with backpressure handling.
                     const encoded = encodeMessage(message);
@@ -241,7 +238,7 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
                     break;
                 }
 
-                case WSMessageType.AIRequest: {
+                case 'ai-request': {
                     try {
                         const generator = aiService.startWriting({
                             docId: ctx.docId,
@@ -269,22 +266,23 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
 
                                     // Send progress to requesting client only (for streaming cursor effect)
                                     ws.send(encodeMessage({
-                                        type: WSMessageType.AIUpdate,
+                                        type: 'ai-update',
                                         update: chunk.update,
-                                        requestId: chunk.requestId
+                                        requestId: chunk.requestId,
+                                        isDone: false
                                     }));
                                 }
                             } catch (e: unknown) {
                                 let errorMsg = "AI generation failed";
-                                let code = WSErrorCode.INVALID_UPDATE;
+                                let code: WSErrorCode = 'INVALID_UPDATE';
 
                                 if (e instanceof Error && e.message.includes("RATE_LIMITED")) {
                                     errorMsg = e.message;
-                                    code = WSErrorCode.RATE_LIMITED;
+                                    code = 'RATE_LIMITED';
                                 }
 
                                 ws.send(encodeMessage({
-                                    type: WSMessageType.Error,
+                                    type: 'error',
                                     code,
                                     message: errorMsg
                                 }));
@@ -292,15 +290,15 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
                         })();
                     } catch (e: unknown) {
                         ws.send(encodeMessage({
-                            type: WSMessageType.Error,
-                            code: WSErrorCode.RATE_LIMITED,
+                            type: 'error',
+                            code: 'RATE_LIMITED',
                             message: e instanceof Error ? e.message : "Rate limited"
                         }));
                     }
                     break;
                 }
 
-                case WSMessageType.AICancel: {
+                case 'ai-cancel': {
                     aiService.cancelWriting(message.requestId);
                     break;
                 }

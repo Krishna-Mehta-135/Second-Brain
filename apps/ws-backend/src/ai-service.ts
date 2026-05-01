@@ -1,24 +1,7 @@
 import * as Y from "yjs";
 import { DocumentManager } from "./document-manager.js";
 import { GoogleGenerativeAI, type Content, type Part } from "@google/generative-ai";
-
-export interface AIWritingRequest {
-    docId: string;
-    prompt: string;
-    insertPosition:
-        | { type: "cursor"; offset: number }
-        | { type: "append" }
-        | { type: "replace"; startOffset: number; endOffset: number };
-    requestId: string;
-    userId: string;
-}
-
-export interface AIChunk {
-    requestId: string;
-    text: string;
-    update: Uint8Array;
-    isDone: boolean;
-}
+import { AIWritingRequest, AIChunk } from "@repo/types";
 
 export interface AIService {
     startWriting(request: AIWritingRequest): AsyncGenerator<AIChunk>;

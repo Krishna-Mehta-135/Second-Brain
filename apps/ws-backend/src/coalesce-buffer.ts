@@ -1,9 +1,10 @@
 import * as Y from 'yjs';
 import { DocumentManager } from './document-manager.js';
-import { WSMessageType, encodeMessage } from './protocol.js';
+import { encodeMessage } from './protocol.js';
 import { RoomManager } from './room-manager.js';
 import { RedisTransport } from './redis-transport.js';
 import { TokenBucket } from './token-bucket.js';
+import { mergeUpdates } from '@repo/crdt';
 
 const COALESCE_INTERVAL_MS = 16;
 /**
@@ -96,7 +97,7 @@ export class CoalesceBufferManager {
     }
 
     const encodedMsg = encodeMessage({
-      type: WSMessageType.Update,
+      type: 'update',
       update: update
     });
 
@@ -144,8 +145,8 @@ export class CoalesceBufferManager {
     buffer.flushTimer = null;
 
     try {
-      // 1. Merge updates into a single Y.js update
-      const mergedUpdate = Y.mergeUpdates(updatesToFlush);
+      // 1. Merge updates into a single Y.js update using shared utility
+      const mergedUpdate = mergeUpdates(updatesToFlush);
 
       // 2. Apply merged update once to the server doc
       const applyResult = await this.documentManager.applyUpdate(docId, mergedUpdate);
@@ -157,12 +158,13 @@ export class CoalesceBufferManager {
       // 3. Broadcast merged update once to all local clients in the room
       const encodedMsg = aiRequestId 
         ? encodeMessage({
-            type: WSMessageType.AIUpdate,
+            type: 'ai-update',
             update: mergedUpdate,
-            requestId: aiRequestId
+            requestId: aiRequestId,
+            isDone: false
           })
         : encodeMessage({
-            type: WSMessageType.Update,
+            type: 'update',
             update: mergedUpdate
           });
       

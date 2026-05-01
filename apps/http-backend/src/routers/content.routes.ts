@@ -1,8 +1,8 @@
-import express from "express";
-import { createNewContent, deleteContent, getAllContent, updateContent } from "../controllers/contentController";
-import { protect } from "../middlewares/auth.middleware";
+import express, { Router } from "express";
+import { createNewContent, deleteContent, getAllContent, updateContent } from "../controllers/contentController.js";
+import { protect } from "../middlewares/auth.middleware.js";
 
-const contentRouter = express.Router();
+const contentRouter: Router = express.Router();
 
 // Apply auth middleware to all routes
 contentRouter.use(protect);
@@ -13,4 +13,4 @@ contentRouter.post("/", createNewContent);            // CREATE new content
 contentRouter.put("/:contentId", updateContent);      // UPDATE content by ID
 contentRouter.delete("/:contentId", deleteContent);   // DELETE content by ID
 
-export { contentRouter }
+export { contentRouter };
