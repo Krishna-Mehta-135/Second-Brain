@@ -24,7 +24,7 @@
       "outputs": []
     },
     "typecheck": {
-      "dependsOn": ["generate"],
+      "dependsOn": ["^build", "generate"],
       "outputs": []
     }
   }
