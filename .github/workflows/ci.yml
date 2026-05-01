@@ -65,9 +65,6 @@ jobs:
           key: turbo-${{ github.sha }}
           restore-keys: turbo-
 
-      - name: Generate Prisma Client
-        run: pnpm turbo generate
-
       - name: Typecheck
         run: pnpm turbo typecheck
 

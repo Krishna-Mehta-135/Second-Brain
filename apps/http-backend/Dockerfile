@@ -1,5 +1,7 @@
 # Stage 1: Install dependencies
 FROM node:20-alpine AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
@@ -13,6 +15,7 @@ RUN pnpm install --frozen-lockfile
 
 # Stage 2: Build
 FROM node:20-alpine AS builder
+RUN apk add --no-cache libc6-compat
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app
 
@@ -21,14 +24,12 @@ COPY --from=deps /app/packages ./packages
 COPY --from=deps /app/apps ./apps
 COPY . .
 
-# Generate Prisma client
-RUN pnpm --filter @repo/db generate
-
-# Build shared packages and app
+# Build app (Turbo will handle Prisma generation via task dependencies)
 RUN pnpm build --filter http-backend
 
 # Stage 3: Production runtime
 FROM node:20-alpine AS runner
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 ENV NODE_ENV=production
