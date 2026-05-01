@@ -15,6 +15,7 @@ import type { Duplex } from "stream";
 
 import { DocumentManager } from "./document-manager.js";
 import { PrismaRepository, PersistenceService } from "@repo/db";
+import { GeminiAIService } from "./ai-service.js";
 
 const PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 8080;
 const HEARTBEAT_INTERVAL = 30_000;
@@ -67,6 +68,8 @@ const documentManager = new DocumentManager({
         logger("error", { reason: error.message }, "document manager error");
     },
 });
+
+const aiService = new GeminiAIService(documentManager);
 
 type AuthResult =
     | { success: true; userId: string; docId: string }
@@ -237,8 +240,73 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
                     void roomManager.broadcastAwareness(ctx.docId, encoded, ctx.clientId);
                     break;
                 }
+
+                case WSMessageType.AIRequest: {
+                    try {
+                        const generator = aiService.startWriting({
+                            docId: ctx.docId,
+                            prompt: message.prompt,
+                            insertPosition: message.insertPosition,
+                            requestId: message.requestId,
+                            userId: ctx.userId
+                        });
+
+                        // Process the AI stream without blocking the main socket message loop
+                        void (async () => {
+                            try {
+                                for await (const chunk of generator) {
+                                    if (chunk.isDone) {
+                                        // Trigger persistence for the AI edits once the stream completes
+                                        persistenceService.scheduleWrite(ctx.docId, () => {
+                                            const res = documentManager.getState(ctx.docId);
+                                            return res.ok ? res.value : new Uint8Array();
+                                        });
+                                        break;
+                                    }
+
+                                    // Route through coalesce buffer — same path as user updates
+                                    coalesceManager.enqueueUpdate(ctx.docId, chunk.update, ctx.clientId, chunk.requestId);
+
+                                    // Send progress to requesting client only (for streaming cursor effect)
+                                    ws.send(encodeMessage({
+                                        type: WSMessageType.AIUpdate,
+                                        update: chunk.update,
+                                        requestId: chunk.requestId
+                                    }));
+                                }
+                            } catch (e: unknown) {
+                                let errorMsg = "AI generation failed";
+                                let code = WSErrorCode.INVALID_UPDATE;
+
+                                if (e instanceof Error && e.message.includes("RATE_LIMITED")) {
+                                    errorMsg = e.message;
+                                    code = WSErrorCode.RATE_LIMITED;
+                                }
+
+                                ws.send(encodeMessage({
+                                    type: WSMessageType.Error,
+                                    code,
+                                    message: errorMsg
+                                }));
+                            }
+                        })();
+                    } catch (e: unknown) {
+                        ws.send(encodeMessage({
+                            type: WSMessageType.Error,
+                            code: WSErrorCode.RATE_LIMITED,
+                            message: e instanceof Error ? e.message : "Rate limited"
+                        }));
+                    }
+                    break;
+                }
+
+                case WSMessageType.AICancel: {
+                    aiService.cancelWriting(message.requestId);
+                    break;
+                }
             }
         } catch (err) {
+
             logger("error", { clientId: ctx.clientId, reason: "internal error" }, "unexpected failure in message loop");
         }
     });

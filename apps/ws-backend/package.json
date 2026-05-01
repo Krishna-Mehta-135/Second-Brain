@@ -9,6 +9,7 @@
     "dev": "npm run build && npm run start"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@repo/db": "workspace:*",
     "dotenv": "^16.4.5",
     "ioredis": "^5.10.1",
