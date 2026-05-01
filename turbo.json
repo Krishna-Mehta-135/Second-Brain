@@ -8,7 +8,7 @@
     "build": {
       "dependsOn": ["^build", "generate"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "env": ["NODE_ENV"],
+      "env": ["NODE_ENV", "API_URL"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "**/*.tsbuildinfo"]
     },
     "dev": {
@@ -21,6 +21,7 @@
     },
     "lint": {
       "dependsOn": ["^lint"],
+      "env": ["API_URL"],
       "outputs": []
     },
     "typecheck": {
