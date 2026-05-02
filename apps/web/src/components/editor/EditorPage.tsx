@@ -6,9 +6,26 @@ import { AIPanel } from "@/components/ai/AIPanel";
 import { ConnectionStatus } from "@/components/status/ConnectionStatus";
 import { OfflineBanner } from "@/components/status/OfflineBanner";
 import { PendingSyncBadge } from "@/components/status/PendingSyncBadge";
+import { WordCount } from "./WordCount";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 export function EditorPage() {
   const { doc } = useDocument();
+
+  useKeyboardShortcuts([
+    {
+      key: "k",
+      meta: true,
+      action: () => console.log("Command palette requested"),
+      description: "Open command palette",
+    },
+    {
+      key: "/",
+      meta: true,
+      action: () => console.log("AI panel requested"),
+      description: "Toggle AI panel",
+    },
+  ]);
 
   return (
     <div className="flex flex-col h-full bg-background text-foreground">
@@ -28,6 +45,7 @@ export function EditorPage() {
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 flex flex-col overflow-hidden">
           <EditorContent doc={doc} />
+          <WordCount />
         </div>
         <AIPanel />
       </div>
