@@ -2,26 +2,19 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import * as Y from "yjs";
-import { DocumentSyncManager } from "../utils/yjs-manager";
+import { useDocument } from "@/lib/sync/useDocument";
+import { StatusDot } from "@repo/ui";
 
 interface CollaborativeEditorProps {
   docId: string;
 }
 
-export const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
-  docId,
-}) => {
+export const CollaborativeEditor: React.FC<CollaborativeEditorProps> = () => {
+  const { doc, status } = useDocument();
   const [text, setText] = useState<string>("");
-  const [status, setStatus] = useState<"online" | "offline">("online");
-  const syncManagerRef = useRef<DocumentSyncManager | null>(null);
   const yTextRef = useRef<Y.Text | null>(null);
 
   useEffect(() => {
-    // Initialize the sync manager
-    const manager = new DocumentSyncManager(docId);
-    syncManagerRef.current = manager;
-
-    const doc = manager.getDoc();
     const yText = doc.getText("content");
     yTextRef.current = yText;
 
@@ -29,73 +22,50 @@ export const CollaborativeEditor: React.FC<CollaborativeEditorProps> = ({
     setText(yText.toString());
 
     // Listen for changes from Y.js (local or remote)
-    yText.observe(() => {
+    const observer = () => {
       setText(yText.toString());
-    });
-
-    // Connect to WebSocket
-    manager.connectWebSocket();
-
-    // Listen for network status changes
-    const handleStatusChange = () => {
-      setStatus(navigator.onLine ? "online" : "offline");
     };
-    window.addEventListener("online", handleStatusChange);
-    window.addEventListener("offline", handleStatusChange);
-    handleStatusChange();
+    yText.observe(observer);
 
     return () => {
-      window.removeEventListener("online", handleStatusChange);
-      window.removeEventListener("offline", handleStatusChange);
+      yText.unobserve(observer);
     };
-  }, [docId]);
+  }, [doc]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     const yText = yTextRef.current;
     if (!yText) return;
 
-    // Simple diffing to apply changes to Y.Text
-    // In a production app, you'd use a binding like y-monaco or y-prosemirror
-    const currentText = yText.toString();
-
-    // For demo purposes, we'll just clear and re-insert if changed
-    // This is NOT efficient but shows the CRDT in action
-    yText.delete(0, currentText.length);
-    yText.insert(0, newText);
+    // Simple diffing for demo purposes
+    // We clear and re-insert (NOT efficient, but shows CRDT convergence)
+    doc.transact(() => {
+      const currentText = yText.toString();
+      yText.delete(0, currentText.length);
+      yText.insert(0, newText);
+    });
   };
 
   return (
-    <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Collaborative Notes
-        </h2>
-        <div
-          className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
-            status === "online"
-              ? "bg-green-100 text-green-700"
-              : "bg-orange-100 text-orange-700"
-          }`}
-        >
-          <div
-            className={`w-2 h-2 rounded-full ${status === "online" ? "bg-green-500" : "bg-orange-500"}`}
-          />
-          {status === "online" ? "Online" : "Offline Mode"}
-        </div>
+    <div className="flex flex-col h-full bg-background">
+      <div className="flex justify-between items-center p-4 border-b border-border">
+        <h2 className="text-lg font-semibold">Collaborative Editor</h2>
+        <StatusDot status={status === "connected" ? "online" : status} />
       </div>
 
-      <textarea
-        value={text}
-        onChange={handleChange}
-        className="w-full h-64 p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none text-gray-800 dark:text-gray-200"
-        placeholder="Start typing your notes here..."
-      />
+      <div className="flex-1 p-4">
+        <textarea
+          value={text}
+          onChange={handleChange}
+          className="w-full h-full p-4 bg-surface border border-border rounded-lg focus:ring-2 focus:ring-brand outline-none resize-none"
+          placeholder="Start collaborating..."
+        />
+      </div>
 
-      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+      <div className="p-2 text-[10px] text-muted-foreground bg-surface border-t border-border px-4">
         {status === "offline"
-          ? "Changes are saved locally and will sync when you reconnect."
-          : "Changes are synced in real-time."}
+          ? "Offline: Changes saved to IndexedDB"
+          : "Syncing in real-time"}
       </div>
     </div>
   );

@@ -4,10 +4,27 @@ import { useState, type ReactNode } from "react";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { MobileSidebarDrawer } from "@/components/shell/MobileSidebarDrawer";
 import { DocumentsProvider } from "@/lib/documents/useDocuments";
+import { useAuth } from "@/lib/auth/useAuth";
 import { Menu } from "lucide-react";
+import { LoadingSpinner } from "@repo/ui";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const auth = useAuth();
+
+  if (auth.status === "loading") {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  // If unauthenticated, we'll likely be redirected by proxy.ts (middleware)
+  // but we return null here to avoid rendering the shell with no user
+  if (auth.status === "unauthenticated") {
+    return null;
+  }
 
   return (
     <DocumentsProvider>

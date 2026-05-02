@@ -7,7 +7,7 @@ export default async function DocumentsPage() {
   const token = cookieStore.get("session")?.value;
 
   // In a real app, API_URL would be defined in env
-  const apiUrl = process.env.API_URL || "http://localhost:3001";
+  const apiUrl = process.env.API_URL || "http://localhost:9898";
 
   try {
     const res = await fetch(`${apiUrl}/api/v1/content?limit=1`, {

@@ -2,18 +2,21 @@
 
 import { useParams } from "next/navigation";
 import { useDocuments } from "@/lib/documents/useDocuments";
-import { LoadingSpinner } from "@repo/ui";
+import { useDocument } from "@/lib/sync/useDocument";
+import { LoadingSpinner, StatusDot } from "@repo/ui";
 import { formatRelativeTime } from "@/lib/utils/time";
 import { FileText, Globe, Users } from "lucide-react";
+import { CollaborativeEditor } from "@/components/CollaborativeEditor";
 
 export default function DocumentPage() {
   const { docId } = useParams();
-  const { documents, isLoading } = useDocuments();
+  const { documents, isLoading: docsLoading } = useDocuments();
+  const { status } = useDocument();
 
   const doc = documents.find((d) => d.id === docId);
   const isTemp = docId?.toString().startsWith("temp-");
 
-  if (isLoading && !doc) {
+  if (docsLoading && !doc) {
     return (
       <div className="flex-1 flex items-center justify-center h-full">
         <LoadingSpinner size="lg" />
@@ -56,6 +59,10 @@ export default function DocumentPage() {
         </div>
 
         <div className="flex items-center gap-4">
+          <StatusDot
+            status={status === "connected" ? "online" : status}
+            className="hidden sm:flex"
+          />
           <div className="flex -space-x-2">
             {/* Real users would be mapped here */}
             <div className="w-7 h-7 rounded-full bg-brand/10 border-2 border-background flex items-center justify-center text-[10px] font-bold text-brand">
@@ -69,7 +76,7 @@ export default function DocumentPage() {
         </div>
       </header>
 
-      {/* Editor Content Placeholder */}
+      {/* Editor Content */}
       <div className="flex-1 p-8 sm:p-12 md:p-16 lg:p-24 overflow-auto">
         <div className="max-w-3xl mx-auto space-y-8">
           <div className="space-y-2">
@@ -82,12 +89,8 @@ export default function DocumentPage() {
             </p>
           </div>
 
-          <div className="prose prose-slate max-w-none">
-            <div className="h-4 w-full bg-surface rounded animate-pulse" />
-            <div className="h-4 w-5/6 bg-surface rounded animate-pulse mt-4" />
-            <div className="h-4 w-4/6 bg-surface rounded animate-pulse mt-4" />
-            <div className="h-4 w-full bg-surface rounded animate-pulse mt-8" />
-            <div className="h-4 w-3/4 bg-surface rounded animate-pulse mt-4" />
+          <div className="min-h-100">
+            <CollaborativeEditor docId={docId as string} />
           </div>
         </div>
       </div>
