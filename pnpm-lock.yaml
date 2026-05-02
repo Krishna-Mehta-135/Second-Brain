@@ -152,6 +152,9 @@ importers:
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
+      y-protocols:
+        specifier: ^1.0.7
+        version: 1.0.7(yjs@13.6.30)
       yjs:
         specifier: ^13.6.30
         version: 13.6.30
@@ -5067,6 +5070,12 @@ packages:
   xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
+
+  y-protocols@1.0.7:
+    resolution: {integrity: sha512-YSVsLoXxO67J6eE/nV4AtFtT3QEotZf5sK5BHxFBXso7VDUT3Tx07IfA6hsu5Q5OmBdMkQVmFZ9QOA7fikWvnw==}
+    engines: {node: '>=16.0.0', npm: '>=8.0.0'}
+    peerDependencies:
+      yjs: ^13.0.0
 
   y18n@5.0.8:
     resolution: {integrity: sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA==}
@@ -10960,6 +10969,11 @@ snapshots:
       powershell-utils: 0.1.0
 
   xtend@4.0.2: {}
+
+  y-protocols@1.0.7(yjs@13.6.30):
+    dependencies:
+      lib0: 0.2.117
+      yjs: 13.6.30
 
   y18n@5.0.8: {}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@/lib/auth/useAuth";
+import { useAuth } from "@/lib/auth/useAuth";
 import { logoutAction } from "@/lib/auth/actions";
 import {
   DropdownMenu,
@@ -12,7 +12,8 @@ import {
 } from "@repo/ui";
 
 export function SidebarHeader() {
-  const user = useUser();
+  const auth = useAuth();
+  const user = auth.status === "authenticated" ? auth.session.user : null;
 
   return (
     <div className="flex items-center justify-between h-12 px-3 border-b border-border">
@@ -25,33 +26,37 @@ export function SidebarHeader() {
       </div>
 
       {/* User menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
-            <UserAvatar
-              name={user.name}
-              userId={user.id}
-              size="sm"
-              showTooltip={false}
-            />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <div className="px-2 py-1.5">
-            <p className="text-sm font-medium">{user.name}</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {user.email}
-            </p>
-          </div>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={() => logoutAction()}
-            className="text-red-600 focus:text-red-600"
-          >
-            Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {user ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <UserAvatar
+                name={user.name}
+                userId={user.id}
+                size="sm"
+                showTooltip={false}
+              />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <div className="px-2 py-1.5">
+              <p className="text-sm font-medium">{user.name}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {user.email}
+              </p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => logoutAction()}
+              className="text-red-600 focus:text-red-600"
+            >
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <div className="w-8 h-8 rounded-full bg-surface-hover animate-pulse" />
+      )}
     </div>
   );
 }
