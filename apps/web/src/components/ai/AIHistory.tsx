@@ -73,7 +73,9 @@ export function addToHistory(prompt: string) {
   if (saved) {
     try {
       history = JSON.parse(saved);
-    } catch (e) {}
+    } catch {
+      // Ignore invalid JSON in session storage
+    }
   }
 
   // Don't add duplicates consecutively
