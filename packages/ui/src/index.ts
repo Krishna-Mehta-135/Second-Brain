@@ -10,6 +10,7 @@ export * from "./components/ui/label";
 export * from "./components/ui/popover";
 export * from "./components/ui/scroll-area";
 export * from "./components/ui/separator";
+export * from "./components/ui/sheet";
 export * from "./components/ui/skeleton";
 export * from "./components/ui/sonner";
 export * from "./components/ui/textarea";

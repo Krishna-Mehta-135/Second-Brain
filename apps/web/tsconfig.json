@@ -1,7 +1,6 @@
 {
   "extends": "../../packages/config/tsconfig.nextjs.json",
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@repo/ui": ["../../packages/ui/src/index.ts"]
@@ -12,8 +11,7 @@
       }
     ],
     "strict": true,
-    "strictNullChecks": true,
-    "ignoreDeprecations": "5.0"
+    "strictNullChecks": true
   },
   "include": [
     "**/*.ts",

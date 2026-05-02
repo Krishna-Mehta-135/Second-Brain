@@ -1,6 +1,6 @@
 // This runs at the edge before any page renders
 // Protected routes redirect to login if no session cookie exists
-// Auth routes redirect to /dashboard if already logged in
+// Auth routes redirect to /documents if already logged in
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -8,7 +8,7 @@ import type { NextRequest } from "next/server";
 const PUBLIC_ROUTES = ["/login", "/register", "/api/"];
 const AUTH_ROUTES = ["/login", "/register"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionToken = request.cookies.get("session")?.value;
 
@@ -19,7 +19,7 @@ export function middleware(request: NextRequest) {
 
   // Already logged in and hitting auth pages — redirect to app
   if (isAuth && sessionToken) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/documents", request.url));
   }
 
   // Not logged in and hitting protected page — redirect to login
