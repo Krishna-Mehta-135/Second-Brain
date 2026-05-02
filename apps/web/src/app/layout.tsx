@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
-import { UpdatePrompt } from "@/components/UpdatePrompt";
+import { UpdatePrompt } from "@/components/status/UpdatePrompt";
 import { TooltipProvider, Toaster } from "@repo/ui";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 
