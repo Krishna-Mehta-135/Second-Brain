@@ -64,3 +64,23 @@ To handle "ghost users" caused by unexpected network drops or backgrounded tabs:
 
 - **AwarenessManager**: A dedicated class that manages the local presence state and links the Awareness protocol to the `SyncManager` transport.
 - **Binary Encoding**: Presence updates are binary-encoded using `y-protocols/awareness` to minimize network overhead during high-frequency events like typing or cursor movement.
+
+## 7. Collaborative Document Title
+
+The document title is not just a database field; it is a first-class CRDT citizen.
+
+### Why in Y.Doc?
+
+Storing the title in the Y.Doc (as a `Y.Text` field named 'title') ensures that if two users edit the title simultaneously, their changes are merged according to standard CRDT rules. If the title were only in the database, the last write would always win, potentially erasing a collaborator's work.
+
+### Why contentEditable?
+
+We use a `contentEditable` `h1` element instead of a standard `input`. This allows the title to wrap naturally like a document heading and provides a more immersive "document-first" feel.
+
+## 8. Real-time Statistics and Deep Observation
+
+Word and character counts are computed in real-time by traversing the `Y.XmlFragment` that stores the document content.
+
+### Deep Observation
+
+Because Tiptap stores content as a nested tree of XML elements and text nodes, a shallow `observe` call on the fragment would only trigger when direct children (like paragraphs) are added or removed. To catch text edits _inside_ those paragraphs, we use `observeDeep`, which recursively monitors the entire content tree.

@@ -12,9 +12,11 @@ import CharacterCount from "@tiptap/extension-character-count";
 import type * as Y from "yjs";
 import * as awarenessProtocol from "y-protocols/awareness";
 import { useUser } from "@/lib/auth/useAuth";
+import { useDocument } from "@/lib/sync/useDocument";
 import { getCursorColor } from "@/lib/utils/color";
 import { EditorToolbar } from "./EditorToolbar";
 import { EditorSkeleton } from "./EditorSkeleton";
+import { EditorTitle } from "./EditorTitle";
 
 interface EditorContentProps {
   doc: Y.Doc;
@@ -22,6 +24,7 @@ interface EditorContentProps {
 
 export function EditorContent({ doc }: EditorContentProps) {
   const user = useUser();
+  const { docId } = useDocument();
 
   const editor = useEditor(
     {
@@ -99,7 +102,8 @@ export function EditorContent({ doc }: EditorContentProps) {
     <div className="flex flex-col flex-1 overflow-hidden">
       <EditorToolbar editor={editor} />
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto py-12 px-4 flex flex-col gap-8">
+          <EditorTitle docId={docId} />
           <TiptapEditorContent editor={editor} />
         </div>
       </div>
