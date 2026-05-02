@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import { encodeStateVector, encodeStateAsUpdate } from "yjs";
-import * as awarenessProtocol from "y-protocols/awareness";
+import type { Awareness } from "y-protocols/awareness";
 import type { WSMessage, InsertPosition } from "@repo/types";
 import { db } from "./db";
 import { encodeMessage, decodeMessage } from "./encode";
@@ -17,7 +17,7 @@ type Unsubscribe = () => void;
 
 export class SyncManager {
   public readonly doc: Y.Doc;
-  public readonly awareness: awarenessProtocol.Awareness;
+  public awareness: Awareness | null = null;
 
   private ws: WebSocket | null = null;
   private status: ConnectionStatus = "connecting";
@@ -47,7 +47,10 @@ export class SyncManager {
     private readonly getToken: () => Promise<string>,
   ) {
     this.doc = new Y.Doc();
-    this.awareness = new awarenessProtocol.Awareness(this.doc);
+  }
+
+  setAwareness(awareness: Awareness) {
+    this.awareness = awareness;
   }
 
   async init(): Promise<void> {
@@ -68,27 +71,6 @@ export class SyncManager {
         this.send({ type: "update", update });
       }
     });
-
-    // 2.5 Awareness sync
-    this.awareness.on(
-      "update",
-      ({
-        added,
-        updated,
-        removed,
-      }: {
-        added: number[];
-        updated: number[];
-        removed: number[];
-      }) => {
-        const changedClients = added.concat(updated).concat(removed);
-        const state = awarenessProtocol.encodeAwarenessUpdate(
-          this.awareness,
-          changedClients,
-        );
-        this.send({ type: "awareness", state });
-      },
-    );
 
     // 3. Network events
     if (typeof window !== "undefined") {
@@ -177,11 +159,7 @@ export class SyncManager {
       }
 
       case "awareness": {
-        awarenessProtocol.applyAwarenessUpdate(
-          this.awareness,
-          msg.state,
-          "remote",
-        );
+        // Awareness updates are handled by AwarenessManager
         break;
       }
 
@@ -301,6 +279,5 @@ export class SyncManager {
     this.doc.destroy();
     this.statusListeners.clear();
     this.messageListeners.clear();
-    this.awareness.destroy();
   }
 }

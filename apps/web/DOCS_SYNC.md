@@ -41,3 +41,26 @@ JavaScript is asynchronous, and React's `useEffect` cleanup can run while async 
 ## 5. IndexedDB Durability
 
 We use a debounced snapshot pattern (2s) to persist the full Y.Doc state to IndexedDB. Individual updates are queued immediately in the `pendingUpdates` store. This ensures that even if the tab is closed suddenly, the user's work is safe and will be synced upon their next visit.
+
+## 6. Real-time Presence (Awareness)
+
+Presence tracking (cursors, active users) is implemented using the **Y.js Awareness Protocol**. This is a separate, ephemeral communication channel that operates independently of the permanent CRDT document state.
+
+### Ephemeral by Design
+
+Presence data is **never persisted** to the database or IndexedDB.
+
+- **Why?**: Document state is intended to be permanent, while presence is transient. Merging them would result in every cursor movement being saved forever, bloating the document and leaking privacy.
+- **Lifecycle**: When a user disconnects, their presence disappears. This is handled by setting the local state to `null` on cleanup, which broadcasts a removal signal to all other clients.
+
+### Heartbeat and Timeouts
+
+To handle "ghost users" caused by unexpected network drops or backgrounded tabs:
+
+- **Heartbeat (15s)**: Every client broadcasts a `lastSeen` timestamp every 15 seconds.
+- **Active Window (30s)**: Clients filter the collaborator list to only show users who have been seen in the last 30 seconds. This ensures the UI remains accurate even if a client fails to send a clean disconnect signal.
+
+### Architecture
+
+- **AwarenessManager**: A dedicated class that manages the local presence state and links the Awareness protocol to the `SyncManager` transport.
+- **Binary Encoding**: Presence updates are binary-encoded using `y-protocols/awareness` to minimize network overhead during high-frequency events like typing or cursor movement.
