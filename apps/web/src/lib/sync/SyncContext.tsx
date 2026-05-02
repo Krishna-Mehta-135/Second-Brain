@@ -5,6 +5,7 @@ import { SyncManager, type ConnectionStatus } from "./SyncManager";
 import { useWsToken } from "@/lib/auth/useWsToken";
 
 interface SyncContextValue {
+  docId: string;
   manager: SyncManager;
   doc: SyncManager["doc"];
   awareness: SyncManager["awareness"];
@@ -20,19 +21,6 @@ export function useSyncManager() {
     throw new Error("useSyncManager must be used within a SyncProvider");
   }
   return context.manager;
-}
-
-export function useDocument() {
-  const context = useContext(SyncContext);
-  if (!context) {
-    throw new Error("useDocument must be used within a SyncProvider");
-  }
-  return {
-    doc: context.doc,
-    status: context.status,
-    isOffline: context.isOffline,
-    awareness: context.awareness,
-  };
 }
 
 export function SyncProvider({
@@ -65,6 +53,7 @@ export function SyncProvider({
   return (
     <SyncContext.Provider
       value={{
+        docId,
         manager,
         doc: manager.doc,
         awareness: manager.awareness,

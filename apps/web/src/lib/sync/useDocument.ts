@@ -8,10 +8,11 @@ export function useDocument() {
   if (!ctx) throw new Error("useDocument must be used within a SyncProvider");
 
   return {
+    docId: ctx.docId,
     doc: ctx.doc,
     awareness: ctx.awareness,
     status: ctx.status,
-    isOffline: ctx.status === "offline",
+    isOffline: ctx.isOffline,
     isSyncing: ctx.status === "syncing",
     isConnected: ctx.status === "connected",
   };

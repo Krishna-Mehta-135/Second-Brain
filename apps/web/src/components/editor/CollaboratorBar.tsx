@@ -1,5 +1,5 @@
 "use client";
-import { useDocument } from "@/lib/sync/SyncContext";
+import { useDocument } from "@/lib/sync/useDocument";
 import { useEffect, useState, useCallback } from "react";
 import type { UserPresence } from "@/lib/sync/awareness";
 
@@ -14,9 +14,10 @@ export function CollaboratorBar() {
     const now = Date.now();
     const list: UserPresence[] = [];
 
-    states.forEach((state) => {
+    states.forEach((state: unknown) => {
       if (!state) return;
       const presence = state as UserPresence;
+
       // Filter by active in last 30s
       if (presence.userId && now - (presence.lastSeen || 0) < 30_000) {
         list.push(presence);
