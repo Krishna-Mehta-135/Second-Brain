@@ -1,10 +1,16 @@
 import * as React from "react";
 
-export function LoadingSpinner({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
+export function LoadingSpinner({
+  size = "md",
+  className,
+}: {
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
   const sizeClass = { sm: "w-4 h-4", md: "w-6 h-6", lg: "w-10 h-10" }[size];
   return (
     <svg
-      className={`${sizeClass} animate-spin text-muted-foreground`}
+      className={`${sizeClass} animate-spin text-muted-foreground ${className || ""}`}
       viewBox="0 0 24 24"
       fill="none"
     >

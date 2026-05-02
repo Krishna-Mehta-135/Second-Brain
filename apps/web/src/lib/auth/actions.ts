@@ -39,7 +39,7 @@ export async function loginAction(prevState: ActionState, formData: FormData) {
     return { error: "Connection failed" };
   }
 
-  redirect("/dashboard");
+  redirect("/documents");
 }
 
 export async function registerAction(
@@ -85,7 +85,7 @@ export async function registerAction(
     return { error: "Connection failed" };
   }
 
-  redirect("/dashboard");
+  redirect("/documents");
 }
 
 export async function logoutAction() {
