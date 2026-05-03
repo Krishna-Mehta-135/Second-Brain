@@ -3,7 +3,6 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 import { TooltipProvider, Toaster } from "@repo/ui";
-import { UnregisterSW } from "@/components/UnregisterSW";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 
 const inter = Inter({
@@ -19,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Second Brain",
+  title: "Knowdex",
   description: "Your digital knowledge companion",
 };
 
@@ -37,7 +36,6 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-background text-foreground">
         <AuthProvider>
           <TooltipProvider>
-            <UnregisterSW />
             {children}
             <Toaster />
           </TooltipProvider>

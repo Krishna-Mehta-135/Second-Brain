@@ -23,9 +23,7 @@ export default function MarketingLayout({
                 />
               </svg>
             </div>
-            <span className="font-semibold text-gray-900 text-lg">
-              Second Brain
-            </span>
+            <span className="font-semibold text-gray-900 text-lg">Knowdex</span>
           </Link>
 
           {/* Nav links */}

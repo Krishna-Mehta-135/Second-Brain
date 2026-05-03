@@ -1,12 +1,12 @@
 "use client";
 
 import { useDocument } from "@/lib/sync/useDocument";
+import { useEffect } from "react";
 import { useEditor, AnyExtension } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import Placeholder from "@tiptap/extension-placeholder";
-import Typography from "@tiptap/extension-typography";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Link from "@tiptap/extension-link";
@@ -24,11 +24,11 @@ import { EditorSkeleton } from "./EditorSkeleton";
 import { CollaboratorBar } from "./CollaboratorBar";
 import { WordCount } from "./WordCount";
 import { EditorToolbar } from "./EditorToolbar";
-import { ConnectionStatus } from "@/components/status/ConnectionStatus";
 
 import { AIPanel } from "@/components/ai/AIPanel";
 import { useBacklinks } from "@/lib/documents/useBacklinks";
 import { useDocuments } from "@/lib/documents/useDocuments";
+import { useRecentDocs } from "@/lib/documents/useRecentDocs";
 
 export function EditorPage() {
   const { doc, awareness } = useDocument();
@@ -59,6 +59,12 @@ function EditorContentWrapper({
   const { docId } = useDocument();
   const { documents } = useDocuments();
   const { updateLinks } = useBacklinks(docId);
+  const { addRecent } = useRecentDocs();
+
+  // Register this document as recently visited
+  useEffect(() => {
+    if (docId) addRecent(docId);
+  }, [docId, addRecent]);
 
   const editor = useEditor(
     {
@@ -76,8 +82,7 @@ function EditorContentWrapper({
               : "Write something, or press Space to use AI...",
           showOnlyCurrent: true,
         }),
-        Typography,
-        CharacterCount.configure({ limit: 10000 }),
+        CharacterCount.configure({ limit: 50000 }),
         TaskList,
         TaskItem.configure({ nested: true }),
         Link.configure({
@@ -88,6 +93,7 @@ function EditorContentWrapper({
           html: false,
           tightLists: true,
           linkify: true,
+          transformPastedText: true,
         }),
         WikiLink,
       ],
@@ -151,13 +157,10 @@ function EditorContentWrapper({
         </div>
       </div>
 
-      {/* Footer info */}
+      {/* Footer info: word count + live collaborators */}
       <div className="h-8 px-4 flex items-center justify-between border-t border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] shrink-0">
         <WordCount />
-        <div className="flex items-center gap-3">
-          <CollaboratorBar />
-          <ConnectionStatus />
-        </div>
+        <CollaboratorBar />
       </div>
     </div>
   );

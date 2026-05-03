@@ -33,7 +33,6 @@ export function ConnectionStatus() {
         show: true,
       },
       connected: { dot: "bg-green-500", label: "Live", show: showConnected },
-      offline: { dot: "bg-slate-400", label: "Offline", show: true },
       error: { dot: "bg-red-500", label: "Disconnected", show: true },
     };
 

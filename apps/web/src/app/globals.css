@@ -15,7 +15,6 @@
   
   --color-status-online: hsl(var(--status-online));
   --color-status-syncing: hsl(var(--status-syncing));
-  --color-status-offline: hsl(var(--status-offline));
   --color-status-error: hsl(var(--status-error));
   
   /* Manual mapping for shadcn utilities since @apply is failing for them in build */
@@ -81,7 +80,6 @@ html {
     /* Status colors */
     --status-online: 142 71% 45%;
     --status-syncing: 217 91% 60%;
-    --status-offline: 220 9% 60%;
     --status-error: 0 84% 60%;
 
     /* Collaboration cursors — these are overridden per-user dynamically */
@@ -132,7 +130,7 @@ html {
     --muted-foreground: 215 20.2% 65.1%;
   }
 
-  /* Second Brain New Design Variables */
+  /* Knowdex New Design Variables */
   .sb-root {
     --sb-bg: 240 10% 4%;
     --sb-bg-panel: 240 10% 6%;

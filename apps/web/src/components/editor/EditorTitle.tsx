@@ -38,7 +38,7 @@ export function EditorTitle({
         const newTitle = yTitle.toString();
         setTitle(newTitle);
         // Update the page title (browser tab)
-        document.title = newTitle || "Untitled — Second Brain";
+        document.title = newTitle || "Untitled — Knowdex";
       }
     };
 

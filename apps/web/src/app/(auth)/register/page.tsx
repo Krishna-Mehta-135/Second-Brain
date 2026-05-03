@@ -18,9 +18,7 @@ export default function RegisterPage() {
         >
           Create your account
         </h1>
-        <p className="text-zinc-500 text-sm">
-          Start building your second brain.
-        </p>
+        <p className="text-zinc-500 text-sm">Start building your knowdex.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 mb-5">

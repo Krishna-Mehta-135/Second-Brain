@@ -1133,7 +1133,10 @@ export default function HomePage() {
       <div className="absolute top-1/2 left-0 w-[500px] h-[500px] bg-violet-600 blur-[140px] opacity-[0.06] rounded-full pointer-events-none -translate-x-1/2" />
 
       <nav className="fixed top-0 left-0 right-0 z-50 sb-glass flex items-center justify-between px-8 py-4">
-        <div className="flex items-center gap-2 text-white font-medium text-lg tracking-tight">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-white font-medium text-lg tracking-tight hover:opacity-80 transition-opacity"
+        >
           <svg
             width="26"
             height="26"
@@ -1190,8 +1193,8 @@ export default function HomePage() {
               strokeOpacity="0.25"
             />
           </svg>
-          Second Brain
-        </div>
+          Knowdex
+        </Link>
         <div className="flex gap-6">
           {["Features", "Method", "Pricing"].map((item) => (
             <a
@@ -1224,7 +1227,7 @@ export default function HomePage() {
       <section className="relative pt-36 pb-20 px-8 flex flex-col items-center text-center z-10">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 text-xs font-medium text-indigo-300 mb-8 border border-indigo-500/20">
           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-          Second Brain 2.0 — Now in Beta
+          Knowdex 2.0 — Now in Beta
         </div>
         <h1
           className="font-semibold tracking-tighter leading-[1.06] mb-7 max-w-4xl"
@@ -1298,7 +1301,7 @@ export default function HomePage() {
               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/40 border border-yellow-500/70" />
               <div className="w-2.5 h-2.5 rounded-full bg-green-500/40 border border-green-500/70" />
               <div className="mx-auto text-[10px] text-[hsl(var(--sb-text-faint))] flex items-center gap-1">
-                <Command size={9} />K — Second Brain
+                <Command size={9} />K — Knowdex
               </div>
               <div className="text-[9px] text-zinc-600 font-medium">
                 Click to edit
@@ -1341,7 +1344,7 @@ export default function HomePage() {
                   icon: <Brain size={20} />,
                   accent: "violet",
                   title: "Graph View",
-                  desc: "Visualize your entire second brain in one canvas. Spot emerging clusters, unearth hidden connections, and rediscover forgotten ideas.",
+                  desc: "Visualize your entire knowdex in one canvas. Spot emerging clusters, unearth hidden connections, and rediscover forgotten ideas.",
                   tags: ["WebGL Rendered", "Interactive"],
                   reverse: true,
                   visual: <GraphViewVisual />,
@@ -1419,9 +1422,9 @@ export default function HomePage() {
               your knowledge.
             </h2>
             <p className="text-lg text-zinc-500 mb-8 leading-relaxed">
-              The human brain works by association. Second Brain&apos;s
-              interactive graph maps your thoughts visually — drag nodes,
-              explore clusters, watch physics do the rest.
+              The human brain works by association. Knowdex&apos;s interactive
+              graph maps your thoughts visually — drag nodes, explore clusters,
+              watch physics do the rest.
             </p>
             <ul className="space-y-3 text-zinc-500 text-sm">
               {[
@@ -1583,14 +1586,14 @@ export default function HomePage() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
             </span>
-            12,000+ people building their second brain right now
+            12,000+ people building their knowdex right now
           </div>
 
           <h2
             className="font-semibold tracking-tighter leading-[1.06] mb-6"
             style={{ fontSize: "3.75rem" }}
           >
-            <span className="text-white">Your second brain</span>
+            <span className="text-white">Your knowdex</span>
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-400">
               starts here.
@@ -1704,7 +1707,7 @@ export default function HomePage() {
                 strokeOpacity="0.25"
               />
             </svg>
-            Second Brain
+            Knowdex
           </div>
           <div className="flex gap-6">
             {["Twitter", "GitHub", "Discord"].map((l) => (
@@ -1719,7 +1722,7 @@ export default function HomePage() {
               </a>
             ))}
           </div>
-          <div>© 2025 Second Brain Inc.</div>
+          <div>© 2025 Knowdex Inc.</div>
         </div>
       </footer>
     </div>

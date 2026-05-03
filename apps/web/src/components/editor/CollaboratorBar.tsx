@@ -46,7 +46,7 @@ export function CollaboratorBar() {
       {collaborators.map((c) => (
         <div
           key={c.userId}
-          className="inline-block h-7 w-7 rounded-full ring-2 ring-background flex items-center justify-center text-[10px] font-bold text-white uppercase shadow-sm"
+          className="inline-flex items-center justify-center h-7 w-7 rounded-full ring-2 ring-[hsl(var(--sb-bg-panel))] text-[10px] font-bold text-white uppercase shadow-sm shrink-0"
           style={{ backgroundColor: c.color }}
           title={c.name}
         >

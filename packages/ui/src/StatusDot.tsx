@@ -2,7 +2,7 @@
 
 import { cn } from "./utils/utils";
 
-export type Status = "online" | "syncing" | "offline" | "error" | "connecting";
+export type Status = "online" | "syncing" | "error" | "connecting";
 
 const STATUS_MAP: Record<
   Status,
@@ -11,7 +11,6 @@ const STATUS_MAP: Record<
   connecting: { color: "bg-yellow-400", pulse: true, label: "Connecting" },
   syncing: { color: "bg-blue-500", pulse: true, label: "Syncing" },
   online: { color: "bg-green-500", pulse: false, label: "Live" },
-  offline: { color: "bg-slate-400", pulse: false, label: "Offline" },
   error: { color: "bg-red-500", pulse: false, label: "Error" },
 };
 

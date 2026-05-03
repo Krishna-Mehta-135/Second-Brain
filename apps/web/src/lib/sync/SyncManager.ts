@@ -5,12 +5,7 @@ import type { WSMessage, InsertPosition } from "@repo/types";
 import { db } from "./db";
 import { encodeMessage, decodeMessage } from "./encode";
 
-export type ConnectionStatus =
-  | "connecting"
-  | "syncing"
-  | "connected"
-  | "offline"
-  | "error";
+export type ConnectionStatus = "connecting" | "syncing" | "connected" | "error";
 
 type Listener<T> = (value: T) => void;
 type Unsubscribe = () => void;
@@ -75,7 +70,6 @@ export class SyncManager {
     // 3. Network events
     if (typeof window !== "undefined") {
       window.addEventListener("online", this.onOnline);
-      window.addEventListener("offline", this.onOffline);
     }
 
     // 4. Connect
@@ -117,9 +111,9 @@ export class SyncManager {
         }
       };
 
-      this.ws.onclose = (event) => {
+      this.ws.onclose = () => {
         this.syncComplete = false;
-        this.setStatus(event.wasClean ? "offline" : "error");
+        this.setStatus("error");
         if (!this.destroyed) this.scheduleReconnect();
       };
 
@@ -207,7 +201,7 @@ export class SyncManager {
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.MAX_RECONNECT) {
       console.error("[SyncManager] Max reconnect attempts reached");
-      this.setStatus("offline");
+      this.setStatus("error");
       return;
     }
     const delay = Math.min(
@@ -266,16 +260,10 @@ export class SyncManager {
     if (!this.destroyed) this.connect();
   };
 
-  private onOffline = () => {
-    this.syncComplete = false;
-    this.setStatus("offline");
-  };
-
   destroy(): void {
     this.destroyed = true;
     if (typeof window !== "undefined") {
       window.removeEventListener("online", this.onOnline);
-      window.removeEventListener("offline", this.onOffline);
     }
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     if (this.snapshotTimer) clearTimeout(this.snapshotTimer);

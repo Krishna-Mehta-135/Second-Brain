@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { LogoMark } from "@/components/ui/LogoMark";
 import { AppMockup } from "@/components/auth/AppMockup";
 
@@ -21,10 +22,13 @@ export default function AuthLayout({
         />
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-2.5 text-white font-semibold text-lg tracking-tight">
+        <Link
+          href="/"
+          className="relative z-10 flex items-center gap-2.5 text-white font-semibold text-lg tracking-tight hover:opacity-80 transition-opacity"
+        >
           <LogoMark size={28} />
-          Second Brain
-        </div>
+          Knowdex
+        </Link>
 
         {/* App mockup */}
         <div

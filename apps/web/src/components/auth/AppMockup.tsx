@@ -20,7 +20,7 @@ export function AppMockup() {
         <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
         <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
         <div className="flex-1 mx-3 h-4 rounded bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
-          <span className="text-[8px] text-zinc-600">second-brain.app</span>
+          <span className="text-[8px] text-zinc-600">knowdex.app</span>
         </div>
       </div>
       {/* App layout */}

@@ -1,5 +1,5 @@
 {
-  "name": "Second-Brain",
+  "name": "knowdex",
   "private": true,
   "scripts": {
     "dev": "turbo run dev",

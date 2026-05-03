@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, useCallback } from "react";
 import {
   Brain,
   Search,
   Plus,
   Hash,
   ChevronRight,
+  ChevronDown,
   Settings,
   Bell,
   Star,
+  StarOff,
   Clock,
   Network,
   MoreHorizontal,
@@ -19,12 +21,21 @@ import {
   Archive,
   Download,
   Trash2,
+  Copy,
+  Check,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/useAuth";
 import { logoutAction } from "@/lib/auth/actions";
 import { MiniPhysicsGraph } from "./MiniPhysicsGraph";
 import { SidebarDocumentList } from "./SidebarDocumentList";
+import { BacklinksPanel } from "@/components/editor/BacklinksPanel";
+import { useParams } from "next/navigation";
+import { useStarredDocs } from "@/lib/documents/useStarredDocs";
+import { useRecentDocs } from "@/lib/documents/useRecentDocs";
+import { useDocuments } from "@/lib/documents/useDocuments";
+import Link from "next/link";
 
 import {
   DropdownMenu,
@@ -42,8 +53,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
   const [isMac, setIsMac] = useState(true);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [recentOpen, setRecentOpen] = useState(false);
+  const [starredOpen, setStarredOpen] = useState(false);
+
   const auth = useAuth();
   const router = useRouter();
+  const params = useParams();
+  const currentDocId = params?.docId as string | undefined;
+
+  const { starredIds, toggleStar, isStarred } = useStarredDocs();
+  const { recentIds } = useRecentDocs();
+  const { documents } = useDocuments();
+
+  // Resolve IDs to document objects
+  const recentDocs = recentIds
+    .map((id) => documents.find((d) => d.id === id))
+    .filter(Boolean) as (typeof documents)[0][];
+
+  const starredDocs = [...starredIds]
+    .map((id) => documents.find((d) => d.id === id))
+    .filter(Boolean) as (typeof documents)[0][];
 
   useEffect(() => {
     setMounted(true);
@@ -63,6 +93,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleShare = useCallback(() => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    });
   }, []);
 
   const userInitials =
@@ -124,8 +161,74 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4 custom-scrollbar">
           <div className="space-y-0.5">
-            <SidebarItem icon={<Clock size={14} />} label="Recent" />
-            <SidebarItem icon={<Star size={14} />} label="Starred" />
+            {/* Recent */}
+            <SidebarItem
+              icon={<Clock size={14} />}
+              label="Recent"
+              expandable
+              expanded={recentOpen}
+              onToggle={() => setRecentOpen((p) => !p)}
+            />
+            {recentOpen && (
+              <div className="ml-4 space-y-0.5">
+                {recentDocs.length === 0 ? (
+                  <p className="text-[11px] text-[hsl(var(--sb-text-faint))] px-2 py-1 italic">
+                    No recent docs
+                  </p>
+                ) : (
+                  recentDocs.slice(0, 5).map((doc) => (
+                    <Link
+                      key={doc.id}
+                      href={`/documents/${doc.id}`}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-[hsl(var(--sb-text-muted))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-colors"
+                    >
+                      <FileText
+                        size={11}
+                        className="text-[hsl(var(--sb-text-faint))] shrink-0"
+                      />
+                      <span className="truncate">
+                        {doc.title || "Untitled"}
+                      </span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Starred */}
+            <SidebarItem
+              icon={<Star size={14} />}
+              label="Starred"
+              expandable
+              expanded={starredOpen}
+              onToggle={() => setStarredOpen((p) => !p)}
+            />
+            {starredOpen && (
+              <div className="ml-4 space-y-0.5">
+                {starredDocs.length === 0 ? (
+                  <p className="text-[11px] text-[hsl(var(--sb-text-faint))] px-2 py-1 italic">
+                    No starred docs
+                  </p>
+                ) : (
+                  starredDocs.map((doc) => (
+                    <Link
+                      key={doc.id}
+                      href={`/documents/${doc.id}`}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-[hsl(var(--sb-text-muted))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-colors"
+                    >
+                      <Star
+                        size={11}
+                        className="text-[hsl(var(--sb-accent))] shrink-0"
+                      />
+                      <span className="truncate">
+                        {doc.title || "Untitled"}
+                      </span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            )}
+
             <SidebarItem
               icon={<Network size={14} />}
               label="Graph View"
@@ -165,9 +268,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <div className="h-14 border-t border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] flex items-center px-4 gap-3 hover:bg-[hsl(var(--sb-bg-hover))] cursor-pointer transition-colors shrink-0">
-              <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-black border border-white/10 text-xs font-bold text-white shadow-sm">
+              <div className="relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-black border border-white/10 text-xs font-bold text-white shadow-sm shrink-0">
                 {userInitials ? userInitials.charAt(0) : "?"}
-                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[hsl(var(--sb-bg-panel))]" />
+                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[hsl(var(--sb-bg-panel))]" />
               </div>
               <div className="text-sm font-medium flex-1 truncate">
                 {userName}
@@ -183,7 +286,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             side="top"
             className="w-56 p-2 bg-[#050505]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl mb-2"
           >
-            <DropdownMenuItem className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10">
+            <DropdownMenuItem
+              onClick={() => router.push("/settings")}
+              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
+            >
               <Settings size={15} className="text-white/60" />
               <span className="font-medium text-sm">Account Settings</span>
             </DropdownMenuItem>
@@ -233,11 +339,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-xs text-[hsl(var(--sb-text-faint))] mr-2">
+            <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--sb-text-faint))] mr-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
               Online
             </div>
-            <button className="text-sm font-medium px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-colors">
-              Share
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-colors"
+            >
+              {shareCopied ? (
+                <Check size={13} className="text-green-400" />
+              ) : (
+                <Copy size={13} />
+              )}
+              {shareCopied ? "Copied!" : "Share"}
             </button>
             <button
               onClick={() => setRightPanelOpen(!rightPanelOpen)}
@@ -258,10 +373,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div className="px-2 py-2 text-[10px] font-bold text-white/40 uppercase tracking-widest">
                   Document Settings
                 </div>
-                <DropdownMenuItem className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10">
-                  <Star size={15} className="text-white/60" />
-                  <span className="font-medium text-sm">Star Document</span>
-                </DropdownMenuItem>
+                {currentDocId && (
+                  <DropdownMenuItem
+                    onClick={() => toggleStar(currentDocId)}
+                    className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
+                  >
+                    {isStarred(currentDocId) ? (
+                      <StarOff
+                        size={15}
+                        className="text-[hsl(var(--sb-accent))]"
+                      />
+                    ) : (
+                      <Star size={15} className="text-white/60" />
+                    )}
+                    <span className="font-medium text-sm">
+                      {isStarred(currentDocId)
+                        ? "Unstar Document"
+                        : "Star Document"}
+                    </span>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10">
                   <Archive size={15} className="text-white/60" />
                   <span className="font-medium text-sm">Archive Note</span>
@@ -326,15 +457,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <div className="font-semibold text-xs tracking-wider text-[hsl(var(--sb-text-faint))] mb-4 uppercase">
-            BACKLINKS (0)
-          </div>
-
-          <div className="space-y-4">
+          {currentDocId ? (
+            <BacklinksPanel docId={currentDocId} compact />
+          ) : (
             <p className="text-xs text-[hsl(var(--sb-text-faint))] italic">
-              No backlinks found.
+              Open a document to see backlinks.
             </p>
-          </div>
+          )}
         </div>
       </div>
 
@@ -396,20 +525,35 @@ function SidebarItem({
   icon,
   label,
   onClick,
+  expandable,
+  expanded,
+  onToggle,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick?: () => void;
+  expandable?: boolean;
+  expanded?: boolean;
+  onToggle?: () => void;
 }) {
+  const handleClick = expandable ? onToggle : onClick;
   return (
     <div
-      onClick={onClick}
+      onClick={handleClick}
       className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-[hsl(var(--sb-text-muted))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] cursor-pointer transition-colors group"
     >
       <span className="text-[hsl(var(--sb-text-faint))] group-hover:text-white transition-colors">
         {icon}
       </span>
-      {label}
+      <span className="flex-1">{label}</span>
+      {expandable && (
+        <ChevronDown
+          size={12}
+          className={`text-[hsl(var(--sb-text-faint))] transition-transform duration-200 ${
+            expanded ? "rotate-180" : ""
+          }`}
+        />
+      )}
     </div>
   );
 }

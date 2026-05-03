@@ -58,7 +58,7 @@ export class GeminiAIService implements AIService {
       const model = this.genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
         systemInstruction: [
-          "You are a writing assistant for a Markdown-based second-brain app.",
+          "You are a writing assistant for a Markdown-based Knowdex app.",
           "Generate ONLY the requested content in clean Markdown.",
           "Use proper Markdown: # for headings, **bold**, *italic*, - for lists, etc.",
           "Do NOT include preamble, explanations, or meta-commentary.",

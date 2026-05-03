@@ -27,7 +27,7 @@ let dbPromise: Promise<IDBPDatabase<SecondBrainDB>> | null = null;
 
 function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB<SecondBrainDB>("second-brain-v1", 1, {
+    dbPromise = openDB<SecondBrainDB>("knowdex-v1", 1, {
       upgrade(db) {
         db.createObjectStore("documents", { keyPath: "docId" });
         const pendingStore = db.createObjectStore("pendingUpdates", {
