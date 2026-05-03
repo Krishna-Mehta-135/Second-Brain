@@ -297,9 +297,16 @@ html {
   border: 1px solid hsla(var(--sb-border)/0.8);
 }
 
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(240 10% 18%); border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar { 
+  width: 6px; 
+}
+.custom-scrollbar::-webkit-scrollbar-track { 
+  background: transparent; 
+}
+.custom-scrollbar::-webkit-scrollbar-thumb { 
+  background: rgba(255, 255, 255, 0.15); 
+  border-radius: 10px; 
+}
 
 /* Tiptap Task List Fixes */
 ul[data-type="taskList"] {
@@ -377,53 +384,54 @@ svg {
   width: 100%;
 }
 
-/* In-app submenu lists: hide scrollbars, still scroll via wheel/trackpad */
+/* In-app submenu lists: visible greyish scrollbars */
 .knowdex-submenu-scroll {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 .knowdex-submenu-scroll::-webkit-scrollbar {
-  display: none;
+  width: 5px;
+}
+.knowdex-submenu-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
 }
 
-/* Move-to-folder nested submenu: hide scrollbars including nested scrollport */
+/* Move-to-folder nested submenu: visible scrollbars */
 .sb-move-to-folder-sub {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent !important;
 }
 .sb-move-to-folder-sub::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
-  display: none !important;
+  width: 5px !important;
 }
-.sb-move-to-folder-sub * {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-}
-.sb-move-to-folder-sub *::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
-  display: none !important;
+.sb-move-to-folder-sub::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 10px !important;
 }
 
-/* Document ⋮ dropdown (note row menu) — no visible scrollbar */
+/* Document ⋮ dropdown (note row menu) — visible greyish scrollbar */
 [data-slot="dropdown-menu-content"].sb-doc-dropdown-scroll {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent !important;
 }
 [data-slot="dropdown-menu-content"].sb-doc-dropdown-scroll::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
-  display: none !important;
+  width: 5px !important;
+}
+[data-slot="dropdown-menu-content"].sb-doc-dropdown-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-radius: 10px !important;
 }
 
-/* Left sidebar workspace list — Obsidian-style, scroll without bar */
+/* Left sidebar workspace list — visible greyish scrollbar */
 .sb-sidebar-no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 .sb-sidebar-no-scrollbar::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+  width: 4px;
+}
+.sb-sidebar-no-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
 }

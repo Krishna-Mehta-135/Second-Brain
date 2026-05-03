@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { Document } from "@repo/types";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { LayoutGroup, motion } from "framer-motion";
 import { useDocuments } from "@/lib/documents/useDocuments";
 import {
@@ -18,7 +19,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@repo/ui";
-import { formatRelativeTime } from "@/lib/utils/time";
+
 import {
   FileText,
   MoreVertical,
@@ -31,9 +32,7 @@ import {
   Folder,
   FolderInput,
   Plus,
-  GripVertical,
   Star,
-  FolderPlus,
 } from "lucide-react";
 import { useStarredDocs } from "@/lib/documents/useStarredDocs";
 import { useWorkspace } from "@/lib/workspaces/WorkspaceProvider";
@@ -98,6 +97,15 @@ function insertDoc(root: TreeNode, doc: Document) {
     cur = cur.children.get(segment)!;
   }
   cur.docs.push(doc);
+}
+
+/** Returns the most recent updatedAt timestamp for any doc inside a TreeNode (recursively). */
+function maxUpdatedAt(node: TreeNode): number {
+  let t = 0;
+  for (const d of node.docs) t = Math.max(t, d.updatedAt ?? 0);
+  for (const child of node.children.values())
+    t = Math.max(t, maxUpdatedAt(child));
+  return t;
 }
 
 function safeDocTitle(doc: Document) {
@@ -260,10 +268,11 @@ function insertionRail(key: string) {
   return (
     <motion.li
       key={key}
-      aria-hidden="true"
-      role="presentation"
-      {...ROW_LAYOUT}
-      className="list-none mx-2 my-px h-[2px] shrink-0 rounded-full bg-[hsl(var(--sb-accent))] shadow-[0_0_14px_rgb(99_102_241/0.65)]"
+      layout
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 2 }}
+      exit={{ opacity: 0, height: 0 }}
+      className="list-none mx-2 my-0.5 h-0.5 bg-[hsl(var(--sb-accent))] shadow-[0_0_8px_hsla(var(--sb-accent)/0.4)] rounded-full z-10"
     />
   );
 }
@@ -289,6 +298,7 @@ function FolderTreeBranch({
   const label = segments[segments.length - 1] ?? "";
   const pathKey = segments.join("/");
   const [open, setOpen] = useState(segments.length <= 2);
+  const { documents, deleteDocument } = useDocuments();
   const nestTarget = nestHoverPath === pathKey;
 
   const childFolders = [...node.children.entries()].sort(([a], [b]) =>
@@ -296,11 +306,7 @@ function FolderTreeBranch({
   );
 
   return (
-    <div
-      className={
-        segments.length ? "ml-1.5 border-l border-white/[0.06] pl-2" : ""
-      }
-    >
+    <div className={segments.length ? "ml-4" : ""}>
       <div
         data-sb-folder-header
         data-sb-folder-path={pathKey}
@@ -313,17 +319,13 @@ function FolderTreeBranch({
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex flex-1 min-w-0 items-center gap-1.5 text-[10px] px-2 py-1 rounded text-[hsl(var(--sb-text-muted))] hover:text-white text-left transition-colors"
+          className="flex flex-1 min-w-0 items-center gap-1.5 text-[11px] px-2 py-1 rounded text-[hsl(var(--sb-text-muted))] hover:text-white text-left transition-colors"
         >
           {open ? (
-            <ChevronDown size={11} className="shrink-0 opacity-70" />
+            <ChevronDown size={13} className="shrink-0 opacity-70" />
           ) : (
-            <ChevronRight size={11} className="shrink-0 opacity-70" />
+            <ChevronRight size={13} className="shrink-0 opacity-70" />
           )}
-          <Folder
-            size={12}
-            className="shrink-0 text-[hsl(var(--sb-accent))]/80"
-          />
           <span className="truncate font-medium">{label}</span>
         </button>
         <DropdownMenu>
@@ -351,6 +353,26 @@ function FolderTreeBranch({
             >
               <Folder size={12} className="text-[hsl(var(--sb-accent))]/90" />
               New subfolder (Untitled)
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="my-1 bg-white/10" />
+            <DropdownMenuItem
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-red-400 hover:bg-red-500/10 hover:text-red-300 cursor-pointer focus:bg-red-500/10 focus:text-red-300 text-xs"
+              onSelect={() => {
+                if (
+                  window.confirm(
+                    `Delete folder "${label}" and all its contents?`,
+                  )
+                ) {
+                  const toDelete = documents.filter((d: Document) => {
+                    const fp = (d.folderPath ?? "").trim();
+                    return fp === pathKey || fp.startsWith(pathKey + "/");
+                  });
+                  toDelete.forEach((d: Document) => void deleteDocument(d.id));
+                }
+              }}
+            >
+              <Trash2 size={12} />
+              Delete folder
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -434,7 +456,7 @@ export function SidebarDocumentList({
 
   filteredRef.current = filteredDocuments;
 
-  const { session, hit, beginGripDrag } = useSidebarObsidianDrag({
+  const { session, hit, beginGripDrag, isDragging } = useSidebarObsidianDrag({
     workspaceId: activeWorkspaceId,
     getDocuments: () => filteredRef.current,
     updateDocument,
@@ -480,6 +502,7 @@ export function SidebarDocumentList({
       const isTemp = doc.id.startsWith("temp-");
       const safeTitle = safeDocTitle(doc);
       const draggingHere = session?.docId === doc.id;
+      const isNestTarget = hit?.type === "nest" && hit.targetDocId === doc.id;
 
       return (
         <motion.li
@@ -488,73 +511,64 @@ export function SidebarDocumentList({
           key={`${listKey}:${doc.id}`}
           data-sb-doc-row
           data-doc-id={doc.id}
-          className={`group list-none rounded-md transition-colors duration-150 ${
-            draggingHere
-              ? "relative z-[2] opacity-55 ring-1 ring-[hsl(var(--sb-accent))]/60 bg-[hsl(var(--sb-bg-panel))]/90 backdrop-blur-[2px]"
-              : ""
+          data-doc-title={safeTitle}
+          data-doc-folder={doc.folderPath ?? ""}
+          style={{
+            zIndex: draggingHere ? 50 : 1,
+            touchAction: "none",
+          }}
+          onPointerDown={(e) => {
+            if (isTemp || e.button !== 0) return;
+            const target = e.target as HTMLElement;
+            // Let button clicks (dropdown trigger) pass through.
+            if (target.closest("button")) return;
+            e.preventDefault();
+            beginGripDrag(e.pointerId, doc.id, listKey, e.clientX, e.clientY);
+          }}
+          className={`group list-none rounded-md transition-all duration-150 select-none ${
+            draggingHere && isDragging
+              ? "opacity-0"
+              : draggingHere
+                ? "opacity-30"
+                : isNestTarget
+                  ? "bg-[hsl(var(--sb-accent))]/25 ring-1 ring-[hsl(var(--sb-accent))]/60 shadow-[inset_0_0_0_1px_hsl(var(--sb-accent)/0.3)]"
+                  : ""
           }`}
         >
-          <div className="flex w-full min-w-0 items-center gap-0.5">
-            {!isTemp ? (
-              <div
-                role="button"
-                tabIndex={-1}
-                title="Drag to reorder — hover folder name to nest"
-                aria-label="Drag to move note"
-                style={{ touchAction: "none" }}
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  beginGripDrag(
-                    e.pointerId,
-                    doc.id,
-                    listKey,
-                    e.clientX,
-                    e.clientY,
-                  );
-                }}
-                className="shrink-0 min-w-[1.875rem] min-h-10 flex items-center justify-center rounded-md cursor-grab active:cursor-grabbing text-white/40 opacity-70 group-hover:opacity-100 hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-all select-none"
-              >
-                <GripVertical size={14} aria-hidden />
-              </div>
-            ) : (
-              <span className="w-7 shrink-0" aria-hidden />
-            )}
+          <div className="flex w-full min-w-0 items-center gap-0.5 ml-4">
             <Link
               href={isTemp ? "#" : `/documents/${doc.id}`}
               draggable={false}
               className={`
-                flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors flex-1 min-w-0
+                flex items-center gap-2 px-2 py-1.5 rounded-md text-[14px] transition-colors flex-1 min-w-0
                 ${
                   isActive
-                    ? "bg-[hsl(var(--sb-accent))]/10 !text-[hsl(var(--sb-accent))] font-medium"
-                    : "!text-white/90 hover:bg-[hsl(var(--sb-bg-hover))] hover:!text-white"
+                    ? "!text-[hsl(var(--sb-accent))] font-medium"
+                    : "!text-white/70 hover:bg-[hsl(var(--sb-bg-hover))] hover:!text-white"
                 }
                 ${isTemp ? "opacity-50 cursor-not-allowed" : ""}
               `}
               onClick={(e) => isTemp && e.preventDefault()}
             >
               <FileText
-                className={`h-4 w-4 shrink-0 ${isActive ? "text-[hsl(var(--sb-accent))]" : "!text-white/50 group-hover:!text-white"}`}
+                className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-[hsl(var(--sb-accent))]" : "!text-white/40 group-hover:!text-white"}`}
               />
-              <div className="flex flex-col flex-1 min-w-0">
-                <span className="truncate">{safeTitle}</span>
-                <span className="text-[10px] !text-white/30 truncate">
-                  {formatRelativeTime(doc.updatedAt)}
-                </span>
-              </div>
+              <span className="truncate">{safeTitle}</span>
             </Link>
 
             {!isTemp && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[hsl(var(--sb-bg-hover))] rounded-md transition-all text-[hsl(var(--sb-text-faint))] hover:text-white focus:opacity-100 shrink-0">
+                  <button
+                    aria-label="Document actions"
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[hsl(var(--sb-bg-hover))] rounded-md transition-all text-[hsl(var(--sb-text-faint))] hover:text-white focus:opacity-100 shrink-0"
+                  >
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className={DOC_MENU_SURFACE}>
-                  <div className="px-2 py-1.5 text-[9px] font-bold text-white/40 uppercase tracking-widest">
-                    Document
+                  <div className="px-2 py-1.5 text-[11px] font-bold text-white/40 uppercase tracking-widest">
+                    DOCUMENT
                   </div>
                   <DropdownMenuItem
                     onSelect={() =>
@@ -614,17 +628,6 @@ export function SidebarDocumentList({
                     }}
                   />
                   <DropdownMenuItem
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/10 cursor-pointer focus:bg-white/10 text-xs"
-                    onSelect={() =>
-                      void newSubfolder((doc.folderPath ?? "").trim())
-                    }
-                  >
-                    <FolderPlus className="h-3.5 w-3.5 text-[hsl(var(--sb-accent))]/90" />
-                    <span className="text-xs font-medium">
-                      Create subfolder
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
                     className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/10 cursor-pointer focus:bg-white/10"
                     onSelect={() => toggleStar(doc.id)}
                   >
@@ -653,6 +656,8 @@ export function SidebarDocumentList({
     [
       pathname,
       session?.docId,
+      isDragging,
+      hit,
       beginGripDrag,
       toggleStar,
       isStarred,
@@ -687,6 +692,16 @@ export function SidebarDocumentList({
     [session, hit, wsId, renderDocRowMotion],
   );
 
+  const rootLeaf = useMemo(
+    () => filteredDocuments.filter((d) => !(d.folderPath ?? "").trim()),
+    [filteredDocuments],
+  );
+
+  const draggedDoc = useMemo(
+    () => (session ? documents.find((d) => d.id === session.docId) : null),
+    [session, documents],
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-1 py-2">
@@ -715,38 +730,80 @@ export function SidebarDocumentList({
     );
   }
 
-  const topFolders = [...tree.children.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
+  // ── Unified top-level list: root docs and folders interleaved by recency ──
+  // Folders always rendered alphabetically within themselves; at the top level
+  // we merge root-docs and folder-slots into one list sorted newest-first so a
+  // newly-created folder rises to the top instead of being pinned below all docs.
+  type TopSlot =
+    | { kind: "docs"; t: number }
+    | { kind: "folder"; name: string; node: TreeNode; t: number };
 
-  const rootLeaf = filteredDocuments.filter(
-    (d) => !(d.folderPath ?? "").trim(),
-  );
+  const slots: TopSlot[] = [];
+
+  if (tree.docs.length > 0) {
+    const t = Math.max(...tree.docs.map((d) => d.updatedAt ?? 0));
+    slots.push({ kind: "docs", t });
+  }
+
+  for (const [nm, ch] of tree.children.entries()) {
+    slots.push({ kind: "folder", name: nm, node: ch, t: maxUpdatedAt(ch) });
+  }
+
+  // Sort: newest first. Ties broken alphabetically by display name.
+  slots.sort((a, b) => {
+    if (b.t !== a.t) return b.t - a.t;
+    const nameA = a.kind === "folder" ? a.name : "";
+    const nameB = b.kind === "folder" ? b.name : "";
+    return nameA.localeCompare(nameB);
+  });
 
   return (
     <div className="space-y-0.5 py-2 select-none">
-      {tree.docs.length > 0 && (
-        <LayoutGroup id="sb-root-docs">
-          <ul
-            data-sb-doc-list={ROOT_LIST_KEY}
-            className="space-y-0.5 list-none p-0 m-0"
+      {/* Drag Ghost */}
+      {session &&
+        draggedDoc &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="fixed z-[9999] pointer-events-none opacity-90 bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-accent))/40] rounded-md shadow-2xl flex items-center gap-2 px-3 py-2 text-[13px] text-white/90"
+            style={{
+              left: session.currentX - 20,
+              top: session.currentY - 15,
+              width: 200,
+            }}
           >
-            {renderOrderedListInFolder(ROOT_LIST_KEY, rootLeaf)}
-          </ul>
-        </LayoutGroup>
-      )}
-      {topFolders.map(([nm, ch]) => (
-        <div key={nm} className="mb-2">
-          <FolderTreeBranch
-            segments={[nm]}
-            node={ch}
-            renderOrderedListInFolder={renderOrderedListInFolder}
-            onNewNoteInFolder={newNoteInFolder}
-            onNewSubfolder={newSubfolder}
-            nestHoverPath={nestHoverPath}
-          />
-        </div>
-      ))}
+            <FileText className="h-3.5 w-3.5 shrink-0 text-white/50" />
+            <span className="truncate">{safeDocTitle(draggedDoc)}</span>
+          </div>,
+          document.body,
+        )}
+
+      {slots.map((slot) => {
+        if (slot.kind === "docs") {
+          return (
+            <LayoutGroup key="sb-root-docs" id="sb-root-docs">
+              <ul
+                data-sb-doc-list={ROOT_LIST_KEY}
+                className="space-y-0.5 list-none p-0 m-0"
+              >
+                {renderOrderedListInFolder(ROOT_LIST_KEY, rootLeaf)}
+              </ul>
+            </LayoutGroup>
+          );
+        }
+        return (
+          <div key={slot.name} className="mb-2">
+            <FolderTreeBranch
+              segments={[slot.name]}
+              node={slot.node}
+              renderOrderedListInFolder={renderOrderedListInFolder}
+              onNewNoteInFolder={newNoteInFolder}
+              onNewSubfolder={newSubfolder}
+              nestHoverPath={nestHoverPath}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

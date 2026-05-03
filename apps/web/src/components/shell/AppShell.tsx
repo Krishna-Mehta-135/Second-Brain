@@ -716,7 +716,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="w-64 p-2 bg-[#050505]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl"
               >
                 <div className="px-2 py-2 text-[10px] font-bold text-white/40 uppercase tracking-widest">
-                  Document Settings
+                  DOCUMENT
                 </div>
                 {currentDocId && (
                   <DropdownMenuItem
