@@ -9,6 +9,8 @@ import React, {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/useAuth";
+import { useWorkspace } from "@/lib/workspaces/WorkspaceProvider";
 import type { Document } from "@repo/types";
 
 interface DocumentsContextType {
@@ -17,6 +19,11 @@ interface DocumentsContextType {
   error: string | null;
   createDocument: () => Promise<Document | null>;
   deleteDocument: (docId: string) => Promise<void>;
+  updateDocument: (
+    docId: string,
+    patch: Record<string, unknown>,
+  ) => Promise<boolean>;
+  patchDocumentInCache: (docId: string, partial: Partial<Document>) => void;
 }
 
 const DocumentsContext = createContext<DocumentsContextType | undefined>(
@@ -28,35 +35,79 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const auth = useAuth();
+  const { activeWorkspaceId, isLoading: wsLoading } = useWorkspace();
 
-  const fetchDocuments = useCallback(async () => {
-    try {
-      const res = await fetch("/api/documents", { credentials: "include" });
-      if (res.status === 401) {
-        router.push("/login");
-        return;
-      }
-      if (!res.ok) throw new Error("Failed to load documents");
-      const docs: Document[] = await res.json();
-      setDocuments(docs.sort((a, b) => b.updatedAt - a.updatedAt));
-      setIsLoading(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setIsLoading(false);
-    }
-  }, [router]);
+  const patchDocumentInCache = useCallback(
+    (docId: string, partial: Partial<Document>) => {
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === docId ? { ...d, ...partial } : d)),
+      );
+    },
+    [],
+  );
 
   useEffect(() => {
-    fetchDocuments();
-  }, [fetchDocuments]);
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<{ docId: string; title: string }>;
+      if (!ev.detail?.docId) return;
+      const t = ev.detail.title?.trim() ? ev.detail.title : "Untitled";
+      patchDocumentInCache(ev.detail.docId, { title: t });
+    };
+    window.addEventListener("doc:title:changed", handler as EventListener);
+    return () =>
+      window.removeEventListener("doc:title:changed", handler as EventListener);
+  }, [patchDocumentInCache]);
+
+  useEffect(() => {
+    if (auth.status !== "authenticated") {
+      if (auth.status === "unauthenticated") setIsLoading(false);
+      return;
+    }
+    if (wsLoading) return;
+
+    if (!activeWorkspaceId) {
+      setDocuments([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const load = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const qs = new URLSearchParams({ workspaceId: activeWorkspaceId });
+        const res = await fetch(`/api/documents?${qs}`, {
+          credentials: "include",
+        });
+        if (res.status === 401) {
+          router.push("/login");
+          setIsLoading(false);
+          return;
+        }
+        if (!res.ok) throw new Error("Failed to load documents");
+        const docs: Document[] = await res.json();
+        setDocuments(
+          [...docs].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)),
+        );
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setIsLoading(false);
+      }
+    };
+
+    load();
+  }, [auth.status, router, activeWorkspaceId, wsLoading]);
 
   const createDocument = useCallback(async () => {
-    // Optimistic: add placeholder immediately
     const tempId = `temp-${Date.now()}`;
     const tempDoc: Document = {
       id: tempId,
       title: "Untitled",
-      ownerId: "", // Will be set by server
+      ownerId: "",
+      folderPath: "",
+      tags: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -68,7 +119,12 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "Untitled" }),
+        body: JSON.stringify({
+          title: "Untitled",
+          workspaceId: activeWorkspaceId ?? undefined,
+          folderPath: "",
+          tags: [],
+        }),
       });
 
       if (res.status === 401) {
@@ -79,21 +135,18 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error("Failed to create");
       const doc: Document = await res.json();
 
-      // Replace temp with real document
       setDocuments((prev) => prev.map((d) => (d.id === tempId ? doc : d)));
       return doc;
     } catch (err) {
-      // Remove temp on failure
       setDocuments((prev) => prev.filter((d) => d.id !== tempId));
       console.error("Failed to create document:", err);
       return null;
     }
-  }, [router]);
+  }, [router, activeWorkspaceId]);
 
   const deleteDocument = useCallback(
     async (docId: string) => {
       const previousDocs = [...documents];
-      // Optimistic remove
       setDocuments((prev) => prev.filter((d) => d.id !== docId));
 
       try {
@@ -109,7 +162,6 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
 
         if (!res.ok) throw new Error("Failed to delete");
       } catch (err) {
-        // Rollback on failure
         setDocuments(previousDocs);
         console.error("Failed to delete document:", err);
       }
@@ -117,9 +169,57 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     [documents, router],
   );
 
+  const updateDocument = useCallback(
+    async (docId: string, patch: Record<string, unknown>) => {
+      try {
+        const res = await fetch(`/api/documents/${docId}`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        if (!res.ok) return false;
+        const payload = await res.json();
+        const raw = payload.data ?? payload;
+        const normalizeTitle = (value: unknown) => {
+          if (typeof value !== "string") return undefined;
+          const title = value.trim();
+          if (!title || title.toLowerCase() === "undefined") return "Untitled";
+          return title;
+        };
+        const parsedTags = Array.isArray(raw.tags)
+          ? raw.tags
+              .map((t: { name?: string } | string) =>
+                typeof t === "string" ? t : (t?.name ?? ""),
+              )
+              .filter(Boolean)
+          : undefined;
+
+        patchDocumentInCache(docId, {
+          title: normalizeTitle(raw.title),
+          folderPath:
+            typeof raw.folderPath === "string" ? raw.folderPath : undefined,
+          tags: parsedTags,
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [patchDocumentInCache],
+  );
+
   return (
     <DocumentsContext.Provider
-      value={{ documents, isLoading, error, createDocument, deleteDocument }}
+      value={{
+        documents,
+        isLoading,
+        error,
+        createDocument,
+        deleteDocument,
+        updateDocument,
+        patchDocumentInCache,
+      }}
     >
       {children}
     </DocumentsContext.Provider>

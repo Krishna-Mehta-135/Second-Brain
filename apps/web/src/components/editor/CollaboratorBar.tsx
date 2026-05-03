@@ -20,7 +20,10 @@ export function CollaboratorBar() {
 
       // Filter by active in last 30s
       if (presence.userId && now - (presence.lastSeen || 0) < 30_000) {
-        list.push(presence);
+        // Prevent duplicate keys if the same user joins from multiple devices/tabs
+        if (!list.find((u) => u.userId === presence.userId)) {
+          list.push(presence);
+        }
       }
     });
 

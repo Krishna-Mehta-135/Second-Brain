@@ -136,7 +136,7 @@ export function EditorToolbar({ editor }: ToolbarProps) {
     <div className="flex items-center gap-3 px-4 py-2 border-b border-[hsl(var(--sb-border))] overflow-x-auto bg-[#0a0a0a] sticky top-0 z-10 custom-scrollbar">
       {groups.map((group, gi) => (
         <div key={group.label} className="flex items-center gap-2">
-          {gi > 0 && (
+          {gi === 1 && ( // Before Format (Bold)
             <Separator
               orientation="vertical"
               className="mx-3 h-5 bg-[hsl(var(--sb-border))]"
@@ -164,7 +164,13 @@ export function EditorToolbar({ editor }: ToolbarProps) {
                 className="bg-[#1a1a1a] text-white border-[hsl(var(--sb-border))]"
               >
                 <div className="flex flex-col items-center">
-                  <span>{item.label}</span>
+                  <span>
+                    {item.label === "Bold"
+                      ? `| ${item.label}`
+                      : item.label === "Quote"
+                        ? `${item.label} |`
+                        : item.label}
+                  </span>
                   {"shortcut" in item && (
                     <kbd className="text-[10px] opacity-80 bg-black/50 border border-white/10 px-1 rounded mt-1">
                       {item.shortcut}
@@ -174,6 +180,12 @@ export function EditorToolbar({ editor }: ToolbarProps) {
               </TooltipContent>
             </Tooltip>
           ))}
+          {gi === 2 && ( // After Structure (Quote)
+            <Separator
+              orientation="vertical"
+              className="mx-3 h-5 bg-[hsl(var(--sb-border))]"
+            />
+          )}
         </div>
       ))}
     </div>

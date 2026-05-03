@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { LogoMark } from "@/components/ui/LogoMark";
 import {
   ArrowRight,
   Brain,
@@ -214,7 +215,7 @@ function PhysicsGraph() {
               y1={pos[e.a]!.y}
               x2={pos[e.b]!.x}
               y2={pos[e.b]!.y}
-              stroke="#6366f1"
+              stroke="#7549BB"
               strokeWidth="1.2"
               strokeOpacity={e.a === 0 ? 0.55 : 0.2}
             />
@@ -645,9 +646,7 @@ function EmbeddedApp() {
       >
         <div className="h-10 flex items-center justify-between px-3 border-b border-[hsl(var(--sb-border))] shrink-0">
           <div className="flex items-center gap-1.5 text-white text-xs font-semibold">
-            <div className="w-4 h-4 rounded bg-[hsl(var(--sb-accent))] flex items-center justify-center">
-              <Brain size={10} className="text-white" />
-            </div>
+            <LogoMark size={16} />
             Robert&apos;s Brain
           </div>
           <div className="flex gap-0.5">
@@ -1137,62 +1136,7 @@ export default function HomePage() {
           href="/"
           className="flex items-center gap-2 text-white font-medium text-lg tracking-tight hover:opacity-80 transition-opacity"
         >
-          <svg
-            width="26"
-            height="26"
-            viewBox="0 0 26 26"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect
-              width="26"
-              height="26"
-              rx="7"
-              fill="#6366f1"
-              fillOpacity="0.9"
-            />
-            <circle cx="13" cy="13" r="3.2" fill="white" />
-            <circle cx="6" cy="7" r="1.8" fill="white" fillOpacity="0.65" />
-            <circle cx="20" cy="7" r="1.8" fill="white" fillOpacity="0.65" />
-            <circle cx="6" cy="19" r="1.5" fill="white" fillOpacity="0.35" />
-            <circle cx="20" cy="19" r="1.5" fill="white" fillOpacity="0.35" />
-            <line
-              x1="7.3"
-              y1="8.3"
-              x2="11.1"
-              y2="11.1"
-              stroke="white"
-              strokeWidth="1"
-              strokeOpacity="0.45"
-            />
-            <line
-              x1="18.7"
-              y1="8.3"
-              x2="14.9"
-              y2="11.1"
-              stroke="white"
-              strokeWidth="1"
-              strokeOpacity="0.45"
-            />
-            <line
-              x1="7.3"
-              y1="17.7"
-              x2="11.1"
-              y2="14.9"
-              stroke="white"
-              strokeWidth="0.9"
-              strokeOpacity="0.25"
-            />
-            <line
-              x1="18.7"
-              y1="17.7"
-              x2="14.9"
-              y2="14.9"
-              stroke="white"
-              strokeWidth="0.9"
-              strokeOpacity="0.25"
-            />
-          </svg>
+          <LogoMark size={26} />
           Knowdex
         </Link>
         <div className="flex gap-6">
@@ -1651,62 +1595,7 @@ export default function HomePage() {
       <footer className="border-t border-white/[0.04] py-10 px-8 text-zinc-600 text-sm">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-2 text-white font-medium">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 26 26"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect
-                width="26"
-                height="26"
-                rx="7"
-                fill="#6366f1"
-                fillOpacity="0.85"
-              />
-              <circle cx="13" cy="13" r="3.2" fill="white" />
-              <circle cx="6" cy="7" r="1.8" fill="white" fillOpacity="0.65" />
-              <circle cx="20" cy="7" r="1.8" fill="white" fillOpacity="0.65" />
-              <circle cx="6" cy="19" r="1.5" fill="white" fillOpacity="0.35" />
-              <circle cx="20" cy="19" r="1.5" fill="white" fillOpacity="0.35" />
-              <line
-                x1="7.3"
-                y1="8.3"
-                x2="11.1"
-                y2="11.1"
-                stroke="white"
-                strokeWidth="1"
-                strokeOpacity="0.45"
-              />
-              <line
-                x1="18.7"
-                y1="8.3"
-                x2="14.9"
-                y2="11.1"
-                stroke="white"
-                strokeWidth="1"
-                strokeOpacity="0.45"
-              />
-              <line
-                x1="7.3"
-                y1="17.7"
-                x2="11.1"
-                y2="14.9"
-                stroke="white"
-                strokeWidth="0.9"
-                strokeOpacity="0.25"
-              />
-              <line
-                x1="18.7"
-                y1="17.7"
-                x2="14.9"
-                y2="14.9"
-                stroke="white"
-                strokeWidth="0.9"
-                strokeOpacity="0.25"
-              />
-            </svg>
+            <LogoMark size={18} />
             Knowdex
           </div>
           <div className="flex gap-6">

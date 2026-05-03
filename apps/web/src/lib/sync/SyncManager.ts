@@ -81,7 +81,9 @@ export class SyncManager {
 
     try {
       const token = await this.getToken();
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://127.0.0.1:8080";
+      const host =
+        typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${host}:8080`;
       const url = `${wsUrl}/ws/documents/${this.docId}?token=${encodeURIComponent(token)}`;
 
       this.ws = new WebSocket(url);

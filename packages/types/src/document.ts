@@ -4,6 +4,19 @@ export interface Document {
   ownerId: string;
   createdAt: number;
   updatedAt: number;
+  /** Folder segments under workspace, e.g. "Research / Notes" */
+  folderPath?: string;
+  workspaceId?: string | null;
+  tags?: string[];
+}
+
+export interface WorkspaceRecord {
+  id: string;
+  name: string;
+  slug: string;
+  ownerId: string;
+  isPublic: boolean;
+  createdAt?: string;
 }
 
 export interface ConnectionContext {

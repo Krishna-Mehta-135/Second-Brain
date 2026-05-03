@@ -2,6 +2,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DocumentsProvider } from "@/lib/documents/useDocuments";
+import { WorkspaceProvider } from "@/lib/workspaces/WorkspaceProvider";
 
 export default async function AppLayout({
   children,
@@ -16,8 +17,10 @@ export default async function AppLayout({
   }
 
   return (
-    <DocumentsProvider>
-      <AppShell>{children}</AppShell>
-    </DocumentsProvider>
+    <WorkspaceProvider>
+      <DocumentsProvider>
+        <AppShell>{children}</AppShell>
+      </DocumentsProvider>
+    </WorkspaceProvider>
   );
 }

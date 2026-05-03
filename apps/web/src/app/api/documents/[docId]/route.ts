@@ -32,7 +32,8 @@ export async function PATCH(
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+    const inner = data.data ?? data;
+    return NextResponse.json(inner);
   } catch (err) {
     console.error("API Error:", err);
     return NextResponse.json(

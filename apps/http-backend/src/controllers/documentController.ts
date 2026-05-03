@@ -26,14 +26,12 @@ export const updateDocumentLinks = asyncHandler(
 
     const { links } = validationResult.data;
 
-    // Verify ownership
+    // Verify document exists
     const content = await prisma.content.findUnique({ where: { id: docId } });
-    if (!content || content.userId !== userId) {
+    if (!content) {
       return res
-        .status(403)
-        .json(
-          new ApiResponse(403, null, "Not authorized to update this document"),
-        );
+        .status(404)
+        .json(new ApiResponse(404, null, "Document not found"));
     }
 
     // Ensure the document exists in the Document table (for referential integrity)
@@ -95,14 +93,12 @@ export const getDocumentBacklinks = asyncHandler(
       return res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
     }
 
-    // Verify ownership
+    // Verify document exists
     const content = await prisma.content.findUnique({ where: { id: docId } });
-    if (!content || content.userId !== userId) {
+    if (!content) {
       return res
-        .status(403)
-        .json(
-          new ApiResponse(403, null, "Not authorized to view this document"),
-        );
+        .status(404)
+        .json(new ApiResponse(404, null, "Document not found"));
     }
 
     // Get backlinks (documents that link TO this doc)

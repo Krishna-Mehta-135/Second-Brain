@@ -300,3 +300,79 @@ html {
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(240 10% 18%); border-radius: 2px; }
+
+/* Tiptap Task List Fixes */
+ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] {
+  /* Force horizontal layout so checkbox sits to the left of content */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] > label {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
+  margin-top: 0;
+  user-select: none;
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] > div {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+/* Ensure checkbox input itself aligns and doesn't stack above text */
+ul[data-type="taskList"] li[data-type="taskItem"] input[type="checkbox"] {
+  margin: 0;
+  margin-right: 0.5rem;
+  align-self: center;
+}
+/* Cross-browser alignment & glow fixes for Safari & Chromium */
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  .sb-glow {
+    box-shadow: 0 0 40px -10px hsla(var(--sb-accent-glow)/0.4),
+                0 0 20px -5px hsla(var(--sb-accent-glow)/0.2);
+  }
+  .sb-glow-hover:hover {
+    box-shadow: 0 0 30px -5px hsla(var(--sb-accent-glow)/0.5),
+                0 0 15px -3px hsla(var(--sb-accent-glow)/0.3);
+  }
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+}
+
+svg {
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+[role=\"menuitem\"],
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: inherit;
+  width: 100%;
+}

@@ -5,6 +5,7 @@ import { authRouter } from "./routers/auth.routes.js";
 import { contentRouter } from "./routers/content.routes.js";
 import { brainRouter } from "./routers/brain.routes.js";
 import { documentRouter } from "./routers/document.routes.js";
+import { workspaceRouter } from "./routers/workspace.routes.js";
 
 const app: Express = express();
 
@@ -18,7 +19,7 @@ app.use(
       process.env.FRONTEND_URL || "http://localhost:3000",
     ],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     optionsSuccessStatus: 200,
   }),
@@ -31,5 +32,6 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/content", contentRouter);
 app.use("/api/v1/brain", brainRouter);
 app.use("/api/v1/documents", documentRouter);
+app.use("/api/v1/workspaces", workspaceRouter);
 
 export { app };

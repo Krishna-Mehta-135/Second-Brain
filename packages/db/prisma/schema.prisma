@@ -8,13 +8,16 @@ datasource db {
 }
 
 model User {
-  id       String    @id @default(uuid())
-  username String    @unique
-  email    String    @unique
-  password String
-  contents Content[]
-  links    Link[]
-  shares   Share[]
+  id                       String                   @id @default(uuid())
+  username                 String                   @unique
+  email                    String                   @unique
+  password                 String
+  contents                 Content[]
+  links                    Link[]
+  shares                   Share[]
+  ownedWorkspaces          Workspace[]              @relation("WorkspaceOwner")
+  workspaceMemberships     WorkspaceMember[]        @relation("WorkspaceMembershipUser")
+  workspaceJoinRequests    WorkspaceJoinRequest[]   @relation("WorkspaceJoinRequester")
 }
 
 model Tag {
@@ -24,13 +27,52 @@ model Tag {
 }
 
 model Content {
-  id      String   @id @default(uuid())
-  title   String
-  link    String
-  type    String // "link", "video", "document", "tweet", "tag"
-  userId  String
-  user    User     @relation(fields: [userId], references: [id])
-  tags    Tag[]
+  id          String     @id @default(uuid())
+  title       String
+  link        String
+  type        String // "link", "video", "document", "tweet", "tag"
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  tags        Tag[]
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  folderPath  String     @default("")
+}
+
+model Workspace {
+  id           String                   @id @default(uuid())
+  name         String
+  slug         String                   @unique
+  ownerId      String
+  owner        User                     @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  isPublic     Boolean                  @default(false)
+  createdAt    DateTime                 @default(now())
+  contents     Content[]
+  members      WorkspaceMember[]
+  joinRequests WorkspaceJoinRequest[]
+}
+
+model WorkspaceMember {
+  workspaceId String
+  userId      String
+  role        String    @default("member")
+  joinedAt    DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation("WorkspaceMembershipUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+}
+
+model WorkspaceJoinRequest {
+  id          String    @id @default(uuid())
+  workspaceId String
+  userId      String
+  status      String    @default("pending")
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requester   User      @relation("WorkspaceJoinRequester", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
 }
 
 model Link {

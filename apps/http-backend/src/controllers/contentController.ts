@@ -10,18 +10,64 @@ const createContentSchema = z.object({
   link: z.string().min(1, "Link is required"),
   type: z.enum(["link", "video", "document", "tweet", "tag"]),
   tags: z.array(z.string()).optional().default([]),
+  workspaceId: z.string().uuid().optional().nullable(),
+  folderPath: z.string().max(512).optional().default(""),
 });
+
+async function workspaceIdFor(
+  userId: string,
+  requested: string | null | undefined,
+) {
+  if (requested) {
+    const m = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: { workspaceId: requested, userId },
+      },
+    });
+    return m ? requested : null;
+  }
+  const m = await prisma.workspaceMember.findFirst({
+    where: { userId },
+    orderBy: { joinedAt: "asc" },
+  });
+  return m?.workspaceId ?? null;
+}
 
 const getAllContent = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.id;
   if (!userId)
     return res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
 
-  const content = await prisma.content.findMany({
-    where: { userId },
-    include: { tags: { select: { id: true, name: true } } },
-    orderBy: { title: "asc" }, // No createdAt in schema currently, fallback to title or omit sort. Wait, Prisma schema doesn't have createdAt for Content. Let's map id to _id.
-  });
+  const qWid =
+    typeof req.query.workspaceId === "string"
+      ? req.query.workspaceId
+      : undefined;
+
+  let content;
+  if (qWid) {
+    const m = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId: qWid, userId } },
+    });
+    if (!m) {
+      return res.status(403).json(new ApiResponse(403, null, "Forbidden"));
+    }
+    content = await prisma.content.findMany({
+      where: {
+        workspaceId: qWid,
+        workspace: {
+          members: { some: { userId } },
+        },
+      },
+      include: { tags: { select: { id: true, name: true } } },
+      orderBy: { title: "asc" },
+    });
+  } else {
+    content = await prisma.content.findMany({
+      where: { userId },
+      include: { tags: { select: { id: true, name: true } } },
+      orderBy: { title: "asc" },
+    });
+  }
 
   const mappedContent = content.map((c: any) => ({
     ...c,
@@ -43,10 +89,18 @@ const createNewContent = asyncHandler(async (req: Request, res: Response) => {
       .json(new ApiResponse(400, null, "Invalid content data"));
   }
 
-  const { title, link, type, tags } = validationResult.data;
+  const { title, link, type, tags, workspaceId, folderPath } =
+    validationResult.data;
   const userId = req.user?.id;
   if (!userId)
     return res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
+
+  const wid = await workspaceIdFor(userId, workspaceId ?? null);
+  if (!wid) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, null, "Workspace required — run bootstrap"));
+  }
 
   // Ensure tags exist and map to connect query
   const tagConnects = [];
@@ -67,6 +121,8 @@ const createNewContent = asyncHandler(async (req: Request, res: Response) => {
       link,
       type,
       userId,
+      workspaceId: wid,
+      folderPath: folderPath ?? "",
       tags: { connect: tagConnects },
     },
     include: { tags: { select: { id: true, name: true } } },
@@ -141,7 +197,7 @@ const updateContent = asyncHandler(async (req: Request, res: Response) => {
       .json(new ApiResponse(400, null, "Invalid content data"));
   }
 
-  const { title, link, type, tags } = validationResult.data;
+  const { title, link, type, tags, folderPath } = validationResult.data;
 
   const content = await prisma.content.findUnique({ where: { id: contentId } });
   if (!content) {
@@ -178,6 +234,7 @@ const updateContent = asyncHandler(async (req: Request, res: Response) => {
       title: title ?? undefined,
       link: link ?? undefined,
       type: type ?? undefined,
+      folderPath: folderPath ?? undefined,
       tags: tagConnects ? { set: tagConnects } : undefined,
     },
     include: { tags: { select: { id: true, name: true } } },

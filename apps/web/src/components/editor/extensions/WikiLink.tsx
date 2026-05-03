@@ -30,13 +30,13 @@ const WikiLinkComponent = (props: NodeViewProps) => {
 
   // Find matching doc by title (case-insensitive)
   const linkedDoc = documents.find(
-    (d) => d.title.toLowerCase() === title.toLowerCase(),
+    (d) => (d.title ?? "").toLowerCase() === String(title ?? "").toLowerCase(),
   );
 
   return (
     <NodeViewWrapper
       as="span"
-      className="inline-flex items-center gap-1 mx-1 px-1.5 py-0.5 rounded-md bg-[hsl(var(--sb-accent))]/10 text-[hsl(var(--sb-accent))] hover:bg-[hsl(var(--sb-accent))]/20 transition-colors cursor-pointer border border-[hsl(var(--sb-accent))]/20 align-middle"
+      className="inline-flex items-center gap-1 text-[hsl(var(--sb-accent))] font-medium cursor-pointer align-middle transition-colors hover:text-[hsl(var(--sb-accent-glow))] mx-1"
     >
       <FileText className="h-3 w-3 shrink-0" />
       {linkedDoc ? (

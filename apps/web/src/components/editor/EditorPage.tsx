@@ -29,6 +29,7 @@ import { AIPanel } from "@/components/ai/AIPanel";
 import { useBacklinks } from "@/lib/documents/useBacklinks";
 import { useDocuments } from "@/lib/documents/useDocuments";
 import { useRecentDocs } from "@/lib/documents/useRecentDocs";
+import { WikiLinkAutocomplete } from "./WikiLinkAutocomplete";
 
 export function EditorPage() {
   const { doc, awareness } = useDocument();
@@ -73,7 +74,10 @@ function EditorContentWrapper({
         Collaboration.configure({ document: doc, field: "content" }),
         CollaborationCursor.configure({
           provider: { awareness, document: doc },
-          user: { name: user.name, color: getCursorColor(user.id) },
+          user: {
+            name: user.name?.trim() ? user.name : "You",
+            color: getCursorColor(user.id),
+          },
         }),
         Placeholder.configure({
           placeholder: ({ node }) =>
@@ -128,7 +132,7 @@ function EditorContentWrapper({
         const ids = Array.from(titles)
           .map((title) => {
             const doc = documents.find(
-              (d) => d.title.toLowerCase() === title.toLowerCase(),
+              (d) => (d.title ?? "").toLowerCase() === title.toLowerCase(),
             );
             return doc?.id;
           })
@@ -139,6 +143,47 @@ function EditorContentWrapper({
     },
     [doc, awareness, documents, updateLinks],
   );
+
+  useEffect(() => {
+    if (!editor) return;
+
+    function onExportRequest(e: Event) {
+      if (!editor) return;
+      const ev = e as CustomEvent<{ docId?: string }>;
+      if (ev.detail?.docId && ev.detail.docId !== docId) return;
+      try {
+        const stor = editor.storage as {
+          markdown?: { getMarkdown: () => string };
+        };
+        const md =
+          typeof stor.markdown?.getMarkdown === "function"
+            ? stor.markdown.getMarkdown()
+            : editor.getText();
+        window.dispatchEvent(
+          new CustomEvent("knowdex-export-markdown-result", {
+            detail: { markdown: md, docId },
+          }),
+        );
+      } catch {
+        window.dispatchEvent(
+          new CustomEvent("knowdex-export-markdown-result", {
+            detail: { markdown: editor.getText(), docId },
+          }),
+        );
+      }
+    }
+
+    window.addEventListener(
+      "knowdex-export-markdown-request",
+      onExportRequest as EventListener,
+    );
+    return () => {
+      window.removeEventListener(
+        "knowdex-export-markdown-request",
+        onExportRequest as EventListener,
+      );
+    };
+  }, [editor, docId]);
 
   return (
     <div className="flex flex-col h-full bg-transparent text-[hsl(var(--sb-text))]">
@@ -151,10 +196,9 @@ function EditorContentWrapper({
           <EditorContent editor={editor} />
         </div>
 
-        {/* Absolute positioned AI panel for better integration with the new layout */}
-        <div className="absolute right-4 top-4 z-20">
-          <AIPanel editor={editor} />
-        </div>
+        <WikiLinkAutocomplete editor={editor} />
+
+        <AIPanel editor={editor} />
       </div>
 
       {/* Footer info: word count + live collaborators */}

@@ -9,10 +9,9 @@ import {
   Mail,
   LogOut,
   Shield,
-  Bell,
-  Palette,
   ArrowLeft,
   ChevronRight,
+  Settings,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -23,6 +22,17 @@ export default function SettingsPage() {
   const user = auth.status === "authenticated" ? auth.session.user : null;
 
   const sections = [
+    {
+      title: "Workspace",
+      items: [
+        {
+          icon: <Settings size={16} className="text-[hsl(var(--sb-accent))]" />,
+          label: "Workspaces & sharing",
+          value: "Switch, visibility, invites",
+          action: "/settings/workspace",
+        },
+      ],
+    },
     {
       title: "Account",
       items: [
@@ -36,23 +46,6 @@ export default function SettingsPage() {
           icon: <Mail size={16} className="text-[hsl(var(--sb-accent))]" />,
           label: "Email address",
           value: user?.email ?? "—",
-          action: null,
-        },
-      ],
-    },
-    {
-      title: "Preferences",
-      items: [
-        {
-          icon: <Palette size={16} className="text-purple-400" />,
-          label: "Appearance",
-          value: "Dark",
-          action: null,
-        },
-        {
-          icon: <Bell size={16} className="text-yellow-400" />,
-          label: "Notifications",
-          value: "Coming soon",
           action: null,
         },
       ],
@@ -106,24 +99,47 @@ export default function SettingsPage() {
               {section.title}
             </h2>
             <div className="rounded-xl border border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] overflow-hidden divide-y divide-[hsl(var(--sb-border))]">
-              {section.items.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center px-4 py-3.5 gap-3 group hover:bg-[hsl(var(--sb-bg-hover))] transition-colors cursor-default"
-                >
-                  <span className="shrink-0">{item.icon}</span>
-                  <span className="flex-1 text-sm text-[hsl(var(--sb-text-muted))] group-hover:text-white transition-colors">
-                    {item.label}
-                  </span>
-                  <span className="text-sm text-[hsl(var(--sb-text-faint))]">
-                    {item.value}
-                  </span>
-                  <ChevronRight
-                    size={14}
-                    className="text-[hsl(var(--sb-text-faint))] opacity-40"
-                  />
-                </div>
-              ))}
+              {section.items.map((item) => {
+                const clickable = typeof item.action === "string";
+                const Wrapper: "button" | "div" = clickable ? "button" : "div";
+                const extra =
+                  clickable && item.action
+                    ? ({
+                        type: "button",
+                        onClick: () => router.push(item.action as string),
+                      } as const)
+                    : {};
+                return (
+                  <Wrapper
+                    key={item.label}
+                    {...extra}
+                    className={`w-full flex items-center px-4 py-3.5 gap-3 group text-left transition-colors ${
+                      clickable
+                        ? "hover:bg-[hsl(var(--sb-bg-hover))] cursor-pointer"
+                        : "cursor-default"
+                    }`}
+                  >
+                    <span className="shrink-0">{item.icon}</span>
+                    <span className="flex-1 text-sm text-[hsl(var(--sb-text-muted))] group-hover:text-white transition-colors">
+                      {item.label}
+                    </span>
+                    <span className="text-sm text-[hsl(var(--sb-text-faint))]">
+                      {item.value}
+                    </span>
+                    {clickable ? (
+                      <ChevronRight
+                        size={14}
+                        className="text-[hsl(var(--sb-text-faint))] opacity-40"
+                      />
+                    ) : (
+                      <ChevronRight
+                        size={14}
+                        className="text-[hsl(var(--sb-text-faint))] opacity-[0.15]"
+                      />
+                    )}
+                  </Wrapper>
+                );
+              })}
             </div>
           </div>
         ))}

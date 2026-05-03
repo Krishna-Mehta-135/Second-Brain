@@ -1,5 +1,6 @@
 // apps/web/src/app/(marketing)/layout.tsx
 import Link from "next/link";
+import { LogoMark } from "@/components/ui/LogoMark";
 
 export default function MarketingLayout({
   children,
@@ -12,17 +13,11 @@ export default function MarketingLayout({
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path
-                  d="M3 4h10M3 8h10M3 12h6"
-                  stroke="white"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+          >
+            <LogoMark size={28} />
             <span className="font-semibold text-gray-900 text-lg">Knowdex</span>
           </Link>
 
@@ -52,7 +47,7 @@ export default function MarketingLayout({
             </Link>
             <Link
               href="/register"
-              className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+              className="text-sm bg-purple-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors"
             >
               Get started free
             </Link>
