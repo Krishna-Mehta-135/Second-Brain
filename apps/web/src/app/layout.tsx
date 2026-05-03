@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
-import { UpdatePrompt } from "@/components/status/UpdatePrompt";
+
 import { TooltipProvider, Toaster } from "@repo/ui";
+import { UnregisterSW } from "@/components/UnregisterSW";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 
 const inter = Inter({
@@ -37,8 +37,7 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-background text-foreground">
         <AuthProvider>
           <TooltipProvider>
-            <ServiceWorkerRegistration />
-            <UpdatePrompt />
+            <UnregisterSW />
             {children}
             <Toaster />
           </TooltipProvider>

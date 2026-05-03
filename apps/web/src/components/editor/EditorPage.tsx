@@ -25,7 +25,7 @@ import { CollaboratorBar } from "./CollaboratorBar";
 import { WordCount } from "./WordCount";
 import { EditorToolbar } from "./EditorToolbar";
 import { ConnectionStatus } from "@/components/status/ConnectionStatus";
-import { OfflineBanner } from "@/components/status/OfflineBanner";
+
 import { AIPanel } from "@/components/ai/AIPanel";
 import { useBacklinks } from "@/lib/documents/useBacklinks";
 import { useDocuments } from "@/lib/documents/useDocuments";
@@ -136,9 +136,6 @@ function EditorContentWrapper({
 
   return (
     <div className="flex flex-col h-full bg-transparent text-[hsl(var(--sb-text))]">
-      {/* Offline banner */}
-      <OfflineBanner />
-
       {/* Toolbar */}
       <EditorToolbar editor={editor} />
 

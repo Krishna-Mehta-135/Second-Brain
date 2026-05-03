@@ -70,34 +70,25 @@ const EDGES: PhysEdge[] = [
 function PhysicsGraph() {
   const W = 400;
   const H = 400;
-  // Initialize refs
-  const posRef = useRef(
-    NODE_META.map((_, i) => {
-      const angle = (i / NODE_META.length) * Math.PI * 2;
-      return {
-        x: W / 2 + Math.cos(angle) * 120,
-        y: H / 2 + Math.sin(angle) * 120,
-      };
-    }),
-  );
+
+  // Deterministic initialization on server and client
+  const initialPositions = NODE_META.map((_, i) => {
+    const angle = (i / NODE_META.length) * Math.PI * 2;
+    return {
+      x: W / 2 + Math.cos(angle) * 120,
+      y: H / 2 + Math.sin(angle) * 120,
+    };
+  });
+
+  const posRef = useRef(initialPositions);
   const velRef = useRef(NODE_META.map(() => ({ vx: 0, vy: 0 })));
   const dragRef = useRef<{ idx: number; ox: number; oy: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const rafRef = useRef<number>(0);
 
-  const [mounted, setMounted] = useState(false);
   const [, setTick] = useState(0);
 
   useEffect(() => {
-    setMounted(true);
-    // Randomize on client after mount
-    posRef.current = posRef.current.map((p, i) => {
-      if (i === 0) return p;
-      const angle = (i / NODE_META.length) * Math.PI * 2;
-      const r = 120 + Math.random() * 40;
-      return { x: W / 2 + Math.cos(angle) * r, y: H / 2 + Math.sin(angle) * r };
-    });
-
     const tick = () => {
       const pos = posRef.current;
       const vel = velRef.current;
@@ -198,114 +189,102 @@ function PhysicsGraph() {
   return (
     <div className="relative w-full">
       <div className="aspect-square rounded-2xl bg-[hsl(var(--sb-bg))] border border-[hsl(var(--sb-border))] sb-glow relative select-none overflow-hidden">
-        {!mounted ? (
-          <div className="w-full h-full flex items-center justify-center text-[hsl(var(--sb-text-faint))] text-xs">
-            Initializing Graph...
-          </div>
-        ) : (
-          <>
-            <style
-              dangerouslySetInnerHTML={{
-                __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
               @keyframes gPulse { 0%,100%{opacity:.75} 50%{opacity:1} }
               .gp { animation: gPulse 2.8s ease-in-out infinite }
             `,
-              }}
+          }}
+        />
+        <svg
+          ref={svgRef}
+          width="100%"
+          height="100%"
+          viewBox={`0 0 ${W} ${H}`}
+          onMouseMove={onMove}
+          onMouseUp={onUp}
+          onMouseLeave={onUp}
+          style={{ cursor: dragRef.current ? "grabbing" : "default" }}
+        >
+          {EDGES.map((e) => (
+            <line
+              key={`${e.a}-${e.b}`}
+              x1={pos[e.a]!.x}
+              y1={pos[e.a]!.y}
+              x2={pos[e.b]!.x}
+              y2={pos[e.b]!.y}
+              stroke="#6366f1"
+              strokeWidth="1.2"
+              strokeOpacity={e.a === 0 ? 0.55 : 0.2}
             />
-            <svg
-              ref={svgRef}
-              width="100%"
-              height="100%"
-              viewBox={`0 0 ${W} ${H}`}
-              onMouseMove={onMove}
-              onMouseUp={onUp}
-              onMouseLeave={onUp}
-              style={{ cursor: dragRef.current ? "grabbing" : "default" }}
-            >
-              {EDGES.map((e) => (
-                <line
-                  key={`${e.a}-${e.b}`}
-                  x1={pos[e.a]!.x}
-                  y1={pos[e.a]!.y}
-                  x2={pos[e.b]!.x}
-                  y2={pos[e.b]!.y}
-                  stroke="#6366f1"
-                  strokeWidth="1.2"
-                  strokeOpacity={e.a === 0 ? 0.55 : 0.2}
+          ))}
+          {NODE_META.map((n) => {
+            const p = pos[n.id]!;
+            const isDrag = dragRef.current?.idx === n.id;
+            return (
+              <g
+                key={n.id}
+                onMouseDown={(e) => onNodeDown(e, n.id)}
+                style={{ cursor: isDrag ? "grabbing" : "grab" }}
+              >
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={n.r + 5}
+                  fill="none"
+                  stroke={n.color}
+                  strokeWidth="1"
+                  strokeOpacity={isDrag ? 0.5 : 0.15}
+                  className={isDrag ? "" : "gp"}
                 />
-              ))}
-              {NODE_META.map((n) => {
-                const p = pos[n.id]!;
-                const isDrag = dragRef.current?.idx === n.id;
-                return (
-                  <g
-                    key={n.id}
-                    onMouseDown={(e) => onNodeDown(e, n.id)}
-                    style={{ cursor: isDrag ? "grabbing" : "grab" }}
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={n.r}
+                  fill={n.color}
+                  style={{
+                    filter: isDrag
+                      ? `drop-shadow(0 0 8px ${n.color})`
+                      : `drop-shadow(0 0 3px ${n.color}88)`,
+                  }}
+                />
+                {n.label && (
+                  <text
+                    x={p.x}
+                    y={p.y + n.r + 11}
+                    textAnchor="middle"
+                    fill={n.id === 0 ? "#e4e4e7" : "#71717a"}
+                    fontSize={n.id === 0 ? 10 : 8.5}
+                    fontWeight={n.id === 0 ? "500" : "400"}
+                    style={{ pointerEvents: "none", userSelect: "none" }}
                   >
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={n.r + 5}
-                      fill="none"
-                      stroke={n.color}
-                      strokeWidth="1"
-                      strokeOpacity={isDrag ? 0.5 : 0.15}
-                      className={isDrag ? "" : "gp"}
-                    />
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={n.r}
-                      fill={n.color}
-                      style={{
-                        filter: isDrag
-                          ? `drop-shadow(0 0 8px ${n.color})`
-                          : `drop-shadow(0 0 3px ${n.color}88)`,
-                      }}
-                    />
-                    {n.label && (
-                      <text
-                        x={p.x}
-                        y={p.y + n.r + 11}
-                        textAnchor="middle"
-                        fill={n.id === 0 ? "#e4e4e7" : "#71717a"}
-                        fontSize={n.id === 0 ? 10 : 8.5}
-                        fontWeight={n.id === 0 ? "500" : "400"}
-                        style={{ pointerEvents: "none", userSelect: "none" }}
-                      >
-                        {n.label}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
-          </>
-        )}
+                    {n.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
       </div>
       <div className="mt-3 text-center min-h-[20px]">
-        {mounted && (
-          <span className="text-xs text-zinc-600">
-            {dragRef.current
-              ? "Dragging — other nodes react to the force"
-              : "Drag any node — physics push others away"}
-          </span>
-        )}
+        <span className="text-xs text-zinc-600">
+          {dragRef.current
+            ? "Dragging — other nodes react to the force"
+            : "Drag any node — physics push others away"}
+        </span>
       </div>
-      {mounted && (
-        <>
-          <div className="absolute top-4 left-4 sb-glass px-3 py-1.5 rounded-lg text-xs font-medium text-white sb-float z-10">
-            Cluster: Machine Learning
-          </div>
-          <div
-            className="absolute bottom-10 right-4 sb-glass px-3 py-1.5 rounded-lg text-xs font-medium text-white sb-float z-10"
-            style={{ animationDelay: "1s" }}
-          >
-            342 Nodes · 1,204 Links
-          </div>
-        </>
-      )}
+      <>
+        <div className="absolute top-4 left-4 sb-glass px-3 py-1.5 rounded-lg text-xs font-medium text-white sb-float z-10">
+          Cluster: Machine Learning
+        </div>
+        <div
+          className="absolute bottom-10 right-4 sb-glass px-3 py-1.5 rounded-lg text-xs font-medium text-white sb-float z-10"
+          style={{ animationDelay: "1s" }}
+        >
+          342 Nodes · 1,204 Links
+        </div>
+      </>
     </div>
   );
 }
@@ -585,7 +564,6 @@ const SLASH_CMDS = [
 ];
 
 function EmbeddedApp() {
-  const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [showSlash, setShowSlash] = useState(false);
@@ -604,7 +582,6 @@ function EmbeddedApp() {
   };
 
   useEffect(() => {
-    setMounted(true);
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
@@ -656,15 +633,6 @@ function EmbeddedApp() {
       else dismissSlash();
     }
   };
-
-  if (!mounted) {
-    return (
-      <div
-        className="flex h-full bg-[hsl(var(--sb-bg-panel))]"
-        style={{ height: 540 }}
-      />
-    );
-  }
 
   return (
     <div
@@ -1134,7 +1102,6 @@ function EmbeddedApp() {
 export default function HomePage() {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const graphSectionRef = useRef<HTMLDivElement>(null);
-  const [hintKey, setHintKey] = useState(0);
 
   useEffect(() => {
     observerRef.current = new IntersectionObserver(
@@ -1151,19 +1118,6 @@ export default function HomePage() {
       .querySelectorAll(".sb-observe")
       .forEach((el) => observerRef.current?.observe(el));
     return () => observerRef.current?.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const el = graphSectionRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) setHintKey((k) => k + 1);
-      },
-      { threshold: 0.3 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
   }, []);
 
   return (
@@ -1291,7 +1245,7 @@ export default function HomePage() {
             href="/register"
             className="bg-white text-zinc-900 px-8 py-3.5 rounded-xl font-bold hover:bg-zinc-50 transition-all shadow-[0_4px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 flex items-center gap-2 group"
           >
-            Start for free
+            <span>Start for free</span>
             <ArrowRight
               size={16}
               className="group-hover:translate-x-1 transition-transform"
@@ -1485,7 +1439,6 @@ export default function HomePage() {
           <div className="flex-1 w-full relative" ref={graphSectionRef}>
             <PhysicsGraph />
             <div
-              key={hintKey}
               className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3.5 py-2 rounded-full border border-white/[0.1] text-xs text-zinc-300 font-medium"
               style={{
                 background: "rgba(15,15,20,0.75)",
@@ -1654,7 +1607,7 @@ export default function HomePage() {
               href="/register"
               className="bg-white text-zinc-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-zinc-50 transition-all hover:-translate-y-0.5 shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)] flex items-center gap-2 group"
             >
-              Start for free
+              <span>Start for free</span>
               <ArrowRight
                 size={18}
                 className="group-hover:translate-x-1 transition-transform"
