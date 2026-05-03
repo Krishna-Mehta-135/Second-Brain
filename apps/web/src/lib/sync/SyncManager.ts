@@ -30,6 +30,11 @@ export class SyncManager {
   private snapshotTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly SNAPSHOT_DEBOUNCE = 2_000;
 
+  /** Batch local Yjs updates into fewer WS frames (avoids rate limits on large selections). */
+  private pendingOutgoing: Uint8Array[] = [];
+  private outgoingFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly OUTGOING_BATCH_MS = 24;
+
   // Event listeners
   private statusListeners = new Set<Listener<ConnectionStatus>>();
   private messageListeners = new Map<
@@ -63,7 +68,7 @@ export class SyncManager {
       this.scheduleSnapshot();
 
       if (this.syncComplete && this.ws?.readyState === WebSocket.OPEN) {
-        this.send({ type: "update", update });
+        this.queueOutgoingUpdate(update);
       }
     });
 
@@ -183,11 +188,32 @@ export class SyncManager {
   }
 
   private async flushPendingUpdates(): Promise<void> {
-    const pending = await db.getPendingUpdates(this.docId);
-    for (const item of pending) {
-      if (!this.syncComplete || this.ws?.readyState !== WebSocket.OPEN) break;
-      this.send({ type: "update", update: item.update });
-      await db.deletePendingUpdate(item.id!);
+    while (this.syncComplete && this.ws?.readyState === WebSocket.OPEN) {
+      const pending = await db.getPendingUpdates(this.docId);
+      if (!pending.length) break;
+      const merged = Y.mergeUpdates(pending.map((p) => p.update));
+      this.send({ type: "update", update: merged });
+      for (const item of pending) {
+        await db.deletePendingUpdate(item.id!);
+      }
+    }
+  }
+
+  private queueOutgoingUpdate(update: Uint8Array): void {
+    this.pendingOutgoing.push(update);
+    if (this.outgoingFlushTimer != null) return;
+    this.outgoingFlushTimer = setTimeout(() => {
+      this.outgoingFlushTimer = null;
+      this.flushOutgoingBatch();
+    }, this.OUTGOING_BATCH_MS);
+  }
+
+  private flushOutgoingBatch(): void {
+    if (!this.pendingOutgoing.length) return;
+    const merged = Y.mergeUpdates(this.pendingOutgoing);
+    this.pendingOutgoing = [];
+    if (this.syncComplete && this.ws?.readyState === WebSocket.OPEN) {
+      this.send({ type: "update", update: merged });
     }
   }
 
@@ -269,6 +295,11 @@ export class SyncManager {
     }
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     if (this.snapshotTimer) clearTimeout(this.snapshotTimer);
+    if (this.outgoingFlushTimer != null) {
+      clearTimeout(this.outgoingFlushTimer);
+      this.outgoingFlushTimer = null;
+    }
+    this.flushOutgoingBatch();
     this.ws?.close();
     this.doc.destroy();
     this.statusListeners.clear();

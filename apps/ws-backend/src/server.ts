@@ -25,8 +25,15 @@ import { TokenBucket } from "./token-bucket.js";
 import { SecurityMiddleware } from "./security-middleware.js";
 import { InsertPosition } from "@repo/types";
 
-const CLIENT_LIMIT_CAPACITY = 50;
-const CLIENT_LIMIT_REFILL = 50;
+/** Per-connection token bucket: burst + sustained msgs/sec (selection/cursors can spike). */
+const CLIENT_LIMIT_CAPACITY = parseInt(
+  process.env.WS_CLIENT_RATE_CAPACITY ?? "220",
+  10,
+);
+const CLIENT_LIMIT_REFILL = parseInt(
+  process.env.WS_CLIENT_RATE_REFILL ?? "180",
+  10,
+);
 
 const loggerInstance = {
   info: (ctx: any, msg: string) => logger("info", ctx, msg),
@@ -193,7 +200,7 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
         encodeMessage({
           type: "error",
           code: "RATE_LIMITED",
-          message: "Exceeded message rate limit (50/s)",
+          message: `Exceeded message rate limit (~${CLIENT_LIMIT_REFILL}/s sustained; reduce edits or reconnect)`,
         }),
       );
       return;

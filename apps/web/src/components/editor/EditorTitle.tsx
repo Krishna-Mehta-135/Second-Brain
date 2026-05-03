@@ -1,6 +1,5 @@
 "use client";
 
-import * as Y from "yjs";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSyncManager } from "@/lib/sync/SyncContext";
 
@@ -47,13 +46,10 @@ export function EditorTitle({
     const initial = normalizeTitle(yTitle.toString());
     setTitle(initial);
 
-    const observer = (_?: unknown, transaction?: Y.Transaction) => {
-      if (!transaction || transaction.origin !== null) {
-        const newTitle = yTitle.toString();
-        const normalized = normalizeTitle(newTitle);
-        setTitle(normalized);
-        notifyTitle(docId, normalized);
-      }
+    const observer = () => {
+      const normalized = normalizeTitle(yTitle.toString());
+      setTitle(normalized);
+      notifyTitle(docId, normalized);
     };
 
     yTitle.observe(observer);

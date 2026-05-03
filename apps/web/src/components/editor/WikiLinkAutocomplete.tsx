@@ -3,7 +3,14 @@
 import { useDocuments } from "@/lib/documents/useDocuments";
 import type { Editor } from "@tiptap/react";
 import { FileText } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDocument } from "@/lib/sync/useDocument";
 
 type PickerState = {
@@ -18,6 +25,7 @@ export function WikiLinkAutocomplete({ editor }: { editor: Editor | null }) {
   const [pick, setPick] = useState<PickerState | null>(null);
   const [hi, setHi] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const scan = useCallback(() => {
     if (!editor) {
@@ -54,15 +62,21 @@ export function WikiLinkAutocomplete({ editor }: { editor: Editor | null }) {
     const others = documents.filter(
       (d) => d.id !== docId && (d.title ?? "").trim(),
     );
-    if (!pick.query) return others.slice(0, 10);
+    if (!pick.query) return others.slice(0, 40);
     return others
       .filter((d) => (d.title ?? "").toLowerCase().includes(pick.query))
-      .slice(0, 10);
+      .slice(0, 40);
   }, [documents, docId, pick]);
 
   useEffect(() => {
     setHi((h) => Math.min(h, Math.max(matches.length - 1, 0)));
   }, [matches.length]);
+
+  useLayoutEffect(() => {
+    if (!listRef.current || matches.length === 0) return;
+    const el = listRef.current.querySelector(`[data-wiki-pick-index="${hi}"]`);
+    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [hi, matches.length]);
 
   const coords = pick && editor?.view.coordsAtPos(pick.head);
 
@@ -147,11 +161,12 @@ export function WikiLinkAutocomplete({ editor }: { editor: Editor | null }) {
       <div className="px-2 py-1.5 text-[10px] font-semibold text-[hsl(var(--sb-text-faint))] uppercase tracking-wide border-b border-[hsl(var(--sb-border))]">
         Link note
       </div>
-      <div className="py-1 max-h-52 overflow-y-auto">
+      <div ref={listRef} className="py-1 max-h-52 overflow-y-auto scroll-py-1">
         {matches.map((m, i) => (
           <button
             type="button"
             key={m.id}
+            data-wiki-pick-index={i}
             onMouseDown={(e) => {
               e.preventDefault();
               apply(m.title || "Untitled");

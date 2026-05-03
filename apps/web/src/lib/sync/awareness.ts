@@ -21,6 +21,9 @@ export interface UserPresence {
 export class AwarenessManager {
   public readonly awareness: Awareness;
   private heartbeatInterval: ReturnType<typeof setInterval>;
+  private awarenessPendingClients = new Set<number>();
+  private awarenessFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly AWARENESS_DEBOUNCE_MS = 48;
 
   constructor(
     private readonly doc: Y.Doc,
@@ -41,7 +44,7 @@ export class AwarenessManager {
     // Link SyncManager with this awareness instance
     this.manager.setAwareness(this.awareness);
 
-    // When local awareness changes — broadcast to other clients
+    // When local awareness changes — broadcast (debounced: cursors + selections spike easily)
     this.awareness.on(
       "update",
       ({
@@ -55,10 +58,18 @@ export class AwarenessManager {
       }) => {
         const changedClients = [...added, ...updated, ...removed];
         if (changedClients.length === 0) return;
-
-        // Encode only the changed clients as binary
-        const update = encodeAwarenessUpdate(this.awareness, changedClients);
-        manager.send({ type: "awareness", state: update });
+        for (const id of changedClients) this.awarenessPendingClients.add(id);
+        if (this.awarenessFlushTimer != null) {
+          clearTimeout(this.awarenessFlushTimer);
+        }
+        this.awarenessFlushTimer = setTimeout(() => {
+          this.awarenessFlushTimer = null;
+          const clients = [...this.awarenessPendingClients];
+          this.awarenessPendingClients.clear();
+          if (clients.length === 0) return;
+          const update = encodeAwarenessUpdate(this.awareness, clients);
+          this.manager.send({ type: "awareness", state: update });
+        }, this.AWARENESS_DEBOUNCE_MS);
       },
     );
 
@@ -102,6 +113,10 @@ export class AwarenessManager {
    */
   destroy() {
     clearInterval(this.heartbeatInterval);
+    if (this.awarenessFlushTimer != null) {
+      clearTimeout(this.awarenessFlushTimer);
+      this.awarenessFlushTimer = null;
+    }
     // Setting local state to null tells other clients to remove this user immediately
     this.awareness.setLocalState(null);
     this.awareness.destroy();

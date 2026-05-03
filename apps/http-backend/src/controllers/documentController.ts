@@ -111,12 +111,27 @@ export const getDocumentBacklinks = asyncHandler(
 
     const fromDocIds = backlinks.map((link) => link.fromDocId);
 
-    // Get titles for those referencing documents
+    const whereClause: {
+      id: { in: string[] };
+      userId?: string | { in: string[] };
+    } = { id: { in: fromDocIds } };
+
+    if (content.workspaceId) {
+      const members = await prisma.workspaceMember.findMany({
+        where: { workspaceId: content.workspaceId },
+        select: { userId: true },
+      });
+      const memberIds = [...new Set(members.map((m) => m.userId))];
+      if (memberIds.length > 0) {
+        whereClause.userId = { in: memberIds };
+      }
+    } else {
+      whereClause.userId = userId;
+    }
+
+    // Titles of notes that link TO this doc (workspace-scoped when applicable)
     const referencingContents = await prisma.content.findMany({
-      where: {
-        id: { in: fromDocIds },
-        userId: userId, // Only show links from docs the user owns/can see
-      },
+      where: whereClause,
       select: {
         id: true,
         title: true,

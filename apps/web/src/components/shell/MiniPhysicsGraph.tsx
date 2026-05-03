@@ -8,11 +8,15 @@ import { useBacklinks } from "@/lib/documents/useBacklinks";
 // ─── Mini Physics Graph for right panel ──────────────────────────────────────
 const MG_W = 200,
   MG_H = 160;
-const MG_REPULSION = 1000,
-  MG_SPRING = 0.018,
-  MG_REST = 68,
-  MG_GRAVITY = 0.0012,
-  MG_DAMP = 0.82;
+/** Weaker repulsion + shorter springs keep the cluster centered (Obsidian-like). */
+const MG_REPULSION = 340,
+  MG_SPRING = 0.028,
+  MG_REST = 44,
+  MG_GRAVITY = 0.0034,
+  MG_DAMP = 0.86;
+/** Gentle push inward near edges — avoids nodes “sticking” to the bbox border. */
+const MG_EDGE_MARGIN = 20;
+const MG_EDGE_SOFT = 0.09;
 
 interface GraphNode {
   id: number;
@@ -92,7 +96,7 @@ export function MiniPhysicsGraph() {
         }
         if (i === 0) return { x: MG_W / 2, y: MG_H / 2 };
         const a = (i / Math.max(1, newNodes.length - 1)) * Math.PI * 2;
-        const radius = 50 + (Math.random() * 10 - 5);
+        const radius = 32 + (Math.random() * 14 - 7);
         return {
           x: MG_W / 2 + Math.cos(a) * radius,
           y: MG_H / 2 + Math.sin(a) * radius,
@@ -174,10 +178,26 @@ export function MiniPhysicsGraph() {
 
       for (let i = 0; i < N; i++) {
         if (i === di) continue;
+        const x = pos[i]!.x;
+        const y = pos[i]!.y;
+
+        if (x < MG_EDGE_MARGIN)
+          vel[i]!.vx += (MG_EDGE_MARGIN - x) * MG_EDGE_SOFT;
+        if (x > MG_W - MG_EDGE_MARGIN)
+          vel[i]!.vx -= (x - (MG_W - MG_EDGE_MARGIN)) * MG_EDGE_SOFT;
+        if (y < MG_EDGE_MARGIN)
+          vel[i]!.vy += (MG_EDGE_MARGIN - y) * MG_EDGE_SOFT;
+        if (y > MG_H - MG_EDGE_MARGIN)
+          vel[i]!.vy -= (y - (MG_H - MG_EDGE_MARGIN)) * MG_EDGE_SOFT;
+
         vel[i]!.vx *= MG_DAMP;
         vel[i]!.vy *= MG_DAMP;
-        pos[i]!.x = Math.max(12, Math.min(MG_W - 12, pos[i]!.x + vel[i]!.vx));
-        pos[i]!.y = Math.max(12, Math.min(MG_H - 12, pos[i]!.y + vel[i]!.vy));
+
+        const pad = 10;
+        const nx = x + vel[i]!.vx;
+        const ny = y + vel[i]!.vy;
+        pos[i]!.x = Math.max(pad, Math.min(MG_W - pad, nx));
+        pos[i]!.y = Math.max(pad, Math.min(MG_H - pad, ny));
       }
 
       tick((t) => t + 1);

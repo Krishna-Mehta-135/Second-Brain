@@ -376,3 +376,54 @@ svg {
   gap: inherit;
   width: 100%;
 }
+
+/* In-app submenu lists: hide scrollbars, still scroll via wheel/trackpad */
+.knowdex-submenu-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.knowdex-submenu-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Move-to-folder nested submenu: hide scrollbars including nested scrollport */
+.sb-move-to-folder-sub {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.sb-move-to-folder-sub::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+.sb-move-to-folder-sub * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.sb-move-to-folder-sub *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+/* Document ⋮ dropdown (note row menu) — no visible scrollbar */
+[data-slot="dropdown-menu-content"].sb-doc-dropdown-scroll {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+[data-slot="dropdown-menu-content"].sb-doc-dropdown-scroll::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+/* Left sidebar workspace list — Obsidian-style, scroll without bar */
+.sb-sidebar-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sb-sidebar-no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}

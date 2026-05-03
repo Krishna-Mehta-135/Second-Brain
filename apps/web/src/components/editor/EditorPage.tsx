@@ -1,7 +1,7 @@
 "use client";
 
 import { useDocument } from "@/lib/sync/useDocument";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useEditor, AnyExtension } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
@@ -61,11 +61,18 @@ function EditorContentWrapper({
   const { documents } = useDocuments();
   const { updateLinks } = useBacklinks(docId);
   const { addRecent } = useRecentDocs();
+  const linkSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Register this document as recently visited
   useEffect(() => {
     if (docId) addRecent(docId);
   }, [docId, addRecent]);
+
+  useEffect(() => {
+    return () => {
+      if (linkSaveTimerRef.current) clearTimeout(linkSaveTimerRef.current);
+    };
+  }, []);
 
   const editor = useEditor(
     {
@@ -110,7 +117,6 @@ function EditorContentWrapper({
       },
       immediatelyRender: false,
       onUpdate: ({ editor }) => {
-        // Extract all wiki links and update backend
         const json = editor.getJSON();
         const titles = new Set<string>();
 
@@ -128,17 +134,25 @@ function EditorContentWrapper({
 
         extractTitles(json as Record<string, unknown>);
 
-        // Resolve titles to doc IDs
         const ids = Array.from(titles)
           .map((title) => {
-            const doc = documents.find(
-              (d) => (d.title ?? "").toLowerCase() === title.toLowerCase(),
+            const d = documents.find(
+              (x) => (x.title ?? "").toLowerCase() === title.toLowerCase(),
             );
-            return doc?.id;
+            return d?.id;
           })
           .filter(Boolean) as string[];
 
-        updateLinks(ids);
+        if (linkSaveTimerRef.current) clearTimeout(linkSaveTimerRef.current);
+        linkSaveTimerRef.current = setTimeout(() => {
+          void updateLinks(ids).then(() => {
+            window.dispatchEvent(
+              new CustomEvent("knowdex:backlinks-changed", {
+                detail: { toDocIds: ids },
+              }),
+            );
+          });
+        }, 450);
       },
     },
     [doc, awareness, documents, updateLinks],

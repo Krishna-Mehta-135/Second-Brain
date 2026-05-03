@@ -4,7 +4,6 @@ import {
   NodeViewWrapper,
   NodeViewProps,
 } from "@tiptap/react";
-import { FileText } from "lucide-react";
 import { useDocuments } from "@/lib/documents/useDocuments";
 import Link from "next/link";
 
@@ -23,37 +22,38 @@ declare module "@tiptap/core" {
   }
 }
 
+/** Inline [[Title]] — purple wiki syntax like the landing preview (brackets visible). */
 const WikiLinkComponent = (props: NodeViewProps) => {
   const { node } = props;
-  const title = node.attrs.title;
+  const title = String(node.attrs.title ?? "").trim() || "Untitled";
   const { documents } = useDocuments();
 
-  // Find matching doc by title (case-insensitive)
   const linkedDoc = documents.find(
-    (d) => (d.title ?? "").toLowerCase() === String(title ?? "").toLowerCase(),
+    (d) => (d.title ?? "").toLowerCase() === title.toLowerCase(),
   );
+
+  const label = `[[${title}]]`;
+
+  if (linkedDoc) {
+    return (
+      <NodeViewWrapper as="span" className="inline align-baseline mx-0.5">
+        <Link
+          href={`/documents/${linkedDoc.id}`}
+          className="text-[hsl(var(--sb-accent))] font-medium no-underline hover:text-[hsl(var(--sb-accent-glow))] hover:underline decoration-[hsl(var(--sb-accent))]/50"
+        >
+          {label}
+        </Link>
+      </NodeViewWrapper>
+    );
+  }
 
   return (
     <NodeViewWrapper
       as="span"
-      className="inline-flex items-center gap-1 text-[hsl(var(--sb-accent))] font-medium cursor-pointer align-middle transition-colors hover:text-[hsl(var(--sb-accent-glow))] mx-1"
+      className="inline align-baseline mx-0.5 text-[hsl(var(--sb-accent))] font-medium opacity-75"
+      title="No note with this title yet"
     >
-      <FileText className="h-3 w-3 shrink-0" />
-      {linkedDoc ? (
-        <Link
-          href={`/documents/${linkedDoc.id}`}
-          className="font-medium text-[13px] no-underline"
-        >
-          {title}
-        </Link>
-      ) : (
-        <span
-          className="font-medium text-[13px] opacity-70"
-          title="Document not found"
-        >
-          {title}
-        </span>
-      )}
+      {label}
     </NodeViewWrapper>
   );
 };

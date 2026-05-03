@@ -29,8 +29,11 @@ import {
   Check,
   FileText,
   Users,
+  Globe,
+  Lock,
+  Folder,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/useAuth";
 import { logoutAction } from "@/lib/auth/actions";
 import { MiniPhysicsGraph } from "./MiniPhysicsGraph";
@@ -65,7 +68,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [currentDocTitle, setCurrentDocTitle] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
+  /** Command palette only — sidebar note list is not filtered by this */
+  const [cmdPaletteSearch, setCmdPaletteSearch] = useState("");
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
   const [isMac, setIsMac] = useState(true);
@@ -77,8 +81,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const auth = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const params = useParams();
-  const currentDocId = params?.docId as string | undefined;
+
+  /** Parent layout often omits nested `docId` from useParams — derive from URL */
+  const currentDocId = useMemo(() => {
+    const fromParams = params?.docId as string | undefined;
+    if (fromParams && fromParams !== "new") return fromParams;
+    const m = pathname?.match(/^\/documents\/([^/]+)$/);
+    const id = m?.[1];
+    if (!id || id === "new") return undefined;
+    return id;
+  }, [params, pathname]);
 
   const {
     memberships,
@@ -89,7 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const { starredIds, toggleStar, isStarred } = useStarredDocs();
   const { recentIds } = useRecentDocs();
-  const { documents } = useDocuments();
+  const { documents, createDocument } = useDocuments();
 
   const isOwnerOfActive =
     memberships.find(
@@ -124,6 +138,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setCurrentDocTitle(null);
   }, [currentDocId]);
+
+  // Clear displayed title when switching workspaces so stale titles don't persist
+  useEffect(() => {
+    setCurrentDocTitle(null);
+  }, [activeWorkspaceId]);
 
   useEffect(() => {
     if (!currentDocId) return;
@@ -214,6 +233,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
       if (e.key === "Escape") {
         setCmdPaletteOpen(false);
+        setCmdPaletteSearch("");
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -341,6 +361,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       : ""
                   }`}
                 >
+                  {m.workspace.isPublic ? (
+                    <Globe
+                      size={16}
+                      className="text-[hsl(var(--sb-accent))] shrink-0 mt-0.5"
+                    />
+                  ) : (
+                    <Lock size={16} className="text-white/45 shrink-0 mt-0.5" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">
                       {m.workspace.name}
@@ -348,17 +376,41 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <div className="text-[10px] text-white/40 truncate font-mono">
                       {m.workspace.slug}
                     </div>
+                    <div className="text-[10px] text-white/35 mt-0.5 leading-snug">
+                      {m.workspace.isPublic
+                        ? "Public — join with slug (Workspace settings to change)"
+                        : "Private — join requests need owner approval"}
+                    </div>
                   </div>
-                  {m.workspace.id === activeWorkspaceId ? (
-                    <Check
-                      size={14}
-                      className="text-[hsl(var(--sb-accent))] shrink-0 mt-0.5"
-                    />
-                  ) : null}
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <div className="text-[10px] px-2 py-0.5 rounded-md font-semibold text-white/90 bg-[hsl(var(--sb-bg))] border border-[hsl(var(--sb-border))]">
+                      {m.workspace.isPublic ? "Public" : "Private"}
+                    </div>
+                    {m.workspace.id === activeWorkspaceId ? (
+                      <Check
+                        size={14}
+                        className="text-[hsl(var(--sb-accent))] shrink-0 mt-0.5"
+                      />
+                    ) : null}
+                  </div>
                 </DropdownMenuItem>
               ))
             )}
             <DropdownMenuSeparator className="my-1.5 bg-white/10" />
+            <DropdownMenuItem
+              onClick={() => {
+                void (async () => {
+                  const d = await createDocument({ folderPath: "Untitled" });
+                  if (d?.id) router.push(`/documents/${d.id}`);
+                })();
+              }}
+              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
+            >
+              <Folder size={15} className="text-[hsl(var(--sb-accent))]/90" />
+              <span className="font-medium text-sm">
+                Create Untitled subfolder
+              </span>
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => router.push("/workspace/join")}
               className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
@@ -418,7 +470,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-4 sb-sidebar-no-scrollbar">
           <div className="space-y-0.5">
             {/* Recent */}
             <SidebarItem
@@ -506,10 +558,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </button>
             </div>
             <div className="space-y-0.5 mt-1">
-              <SidebarDocumentList
-                search={search}
-                tagFilter={sidebarTagFilter}
-              />
+              <SidebarDocumentList search="" tagFilter={sidebarTagFilter} />
             </div>
           </div>
 
@@ -750,7 +799,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setCmdPaletteOpen(false)}
+            onClick={() => {
+              setCmdPaletteOpen(false);
+              setCmdPaletteSearch("");
+            }}
           />
           <div className="relative w-full max-w-2xl bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7),0_0_40px_-10px_hsla(var(--sb-accent-glow)/0.2)] overflow-hidden sb-animate-in flex flex-col">
             <div className="flex items-center px-4 h-14 border-b border-[hsl(var(--sb-border))]">
@@ -760,8 +812,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 placeholder="Search notes, commands, or tags..."
                 className="flex-1 bg-transparent border-none text-lg px-4 text-white placeholder:text-[hsl(var(--sb-text-faint))] focus:ring-0 focus:outline-none"
                 autoFocus
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={cmdPaletteSearch}
+                onChange={(e) => setCmdPaletteSearch(e.target.value)}
               />
               <div className="text-[10px] text-[hsl(var(--sb-text-faint))] bg-[hsl(var(--sb-bg))] px-2 py-1 rounded border border-[hsl(var(--sb-border))]">
                 ESC
@@ -790,7 +842,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 RECENT NOTES
               </div>
               <SidebarDocumentList
-                search={search}
+                search={cmdPaletteSearch}
                 tagFilter={sidebarTagFilter}
               />
             </div>

@@ -17,7 +17,7 @@ interface DocumentsContextType {
   documents: Document[];
   isLoading: boolean;
   error: string | null;
-  createDocument: () => Promise<Document | null>;
+  createDocument: (opts?: { folderPath?: string }) => Promise<Document | null>;
   deleteDocument: (docId: string) => Promise<void>;
   updateDocument: (
     docId: string,
@@ -100,49 +100,53 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     load();
   }, [auth.status, router, activeWorkspaceId, wsLoading]);
 
-  const createDocument = useCallback(async () => {
-    const tempId = `temp-${Date.now()}`;
-    const tempDoc: Document = {
-      id: tempId,
-      title: "Untitled",
-      ownerId: "",
-      folderPath: "",
-      tags: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+  const createDocument = useCallback(
+    async (opts?: { folderPath?: string }) => {
+      const folderPath = (opts?.folderPath ?? "").trim();
+      const tempId = `temp-${Date.now()}`;
+      const tempDoc: Document = {
+        id: tempId,
+        title: "Untitled",
+        ownerId: "",
+        folderPath,
+        tags: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
 
-    setDocuments((prev) => [tempDoc, ...prev]);
+      setDocuments((prev) => [tempDoc, ...prev]);
 
-    try {
-      const res = await fetch("/api/documents", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "Untitled",
-          workspaceId: activeWorkspaceId ?? undefined,
-          folderPath: "",
-          tags: [],
-        }),
-      });
+      try {
+        const res = await fetch("/api/documents", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "Untitled",
+            workspaceId: activeWorkspaceId ?? undefined,
+            folderPath,
+            tags: [],
+          }),
+        });
 
-      if (res.status === 401) {
-        router.push("/login");
+        if (res.status === 401) {
+          router.push("/login");
+          return null;
+        }
+
+        if (!res.ok) throw new Error("Failed to create");
+        const doc: Document = await res.json();
+
+        setDocuments((prev) => prev.map((d) => (d.id === tempId ? doc : d)));
+        return doc;
+      } catch (err) {
+        setDocuments((prev) => prev.filter((d) => d.id !== tempId));
+        console.error("Failed to create document:", err);
         return null;
       }
-
-      if (!res.ok) throw new Error("Failed to create");
-      const doc: Document = await res.json();
-
-      setDocuments((prev) => prev.map((d) => (d.id === tempId ? doc : d)));
-      return doc;
-    } catch (err) {
-      setDocuments((prev) => prev.filter((d) => d.id !== tempId));
-      console.error("Failed to create document:", err);
-      return null;
-    }
-  }, [router, activeWorkspaceId]);
+    },
+    [router, activeWorkspaceId],
+  );
 
   const deleteDocument = useCallback(
     async (docId: string) => {

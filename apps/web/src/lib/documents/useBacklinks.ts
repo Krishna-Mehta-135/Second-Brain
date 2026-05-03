@@ -5,6 +5,39 @@ export interface Backlink {
   title: string;
 }
 
+/** Normalize API payloads: `{ data: [...] }`, raw arrays, or `{ data: { data: ... } }`. */
+function extractBacklinkRows(json: unknown): Backlink[] {
+  if (Array.isArray(json)) {
+    return normalizeRows(json);
+  }
+  if (!json || typeof json !== "object") return [];
+  const o = json as Record<string, unknown>;
+  let raw: unknown = o.data;
+  if (raw && typeof raw === "object" && !Array.isArray(raw) && "data" in raw) {
+    const inner = (raw as { data?: unknown }).data;
+    if (Array.isArray(inner)) raw = inner;
+  }
+  if (!Array.isArray(raw)) return [];
+  return normalizeRows(raw);
+}
+
+function normalizeRows(raw: unknown[]): Backlink[] {
+  return raw
+    .filter(
+      (row): row is { id: string; title?: unknown } =>
+        row !== null &&
+        typeof row === "object" &&
+        typeof (row as { id?: unknown }).id === "string",
+    )
+    .map((row) => ({
+      id: row.id,
+      title:
+        typeof row.title === "string" && row.title.trim()
+          ? row.title
+          : "Untitled",
+    }));
+}
+
 export function useBacklinks(docId: string) {
   const [backlinks, setBacklinks] = useState<Backlink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -17,8 +50,9 @@ export function useBacklinks(docId: string) {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      setBacklinks(data.data || []);
+      const json: unknown = await res.json();
+      const list = extractBacklinkRows(json);
+      setBacklinks(list);
     } catch (error) {
       console.error("Failed to fetch backlinks:", error);
     } finally {
@@ -48,6 +82,23 @@ export function useBacklinks(docId: string) {
   useEffect(() => {
     fetchBacklinks();
   }, [fetchBacklinks]);
+
+  useEffect(() => {
+    function onInvalidate(e: Event) {
+      const ids = (e as CustomEvent<{ toDocIds?: string[] }>).detail?.toDocIds;
+      if (!ids?.length || !docId) return;
+      if (ids.includes(docId)) void fetchBacklinks();
+    }
+    window.addEventListener(
+      "knowdex:backlinks-changed",
+      onInvalidate as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "knowdex:backlinks-changed",
+        onInvalidate as EventListener,
+      );
+  }, [docId, fetchBacklinks]);
 
   return { backlinks, isLoading, updateLinks, fetchBacklinks };
 }
