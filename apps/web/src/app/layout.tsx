@@ -29,8 +29,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans antialiased">
+    <html
+      lang="en"
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      data-scroll-behavior="smooth"
+    >
+      <body className="font-sans antialiased bg-background text-foreground">
         <AuthProvider>
           <TooltipProvider>
             <ServiceWorkerRegistration />

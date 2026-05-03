@@ -1,14 +1,15 @@
 // public/sw.js
 // Version this cache — increment when deploying breaking changes
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v3";
 const SHELL_CACHE = `second-brain-shell-${CACHE_VERSION}`;
 const API_CACHE = `second-brain-api-${CACHE_VERSION}`;
 
 // App shell files to cache on install
-const SHELL_URLS = ["/", "/documents", "/signin", "/signup"];
+const SHELL_URLS = ["/documents"];
 
 // Install — cache app shell immediately
 self.addEventListener("install", (event) => {
+  self.skipWaiting(); // Force immediate activation
   event.waitUntil(
     caches
       .open(SHELL_CACHE)
@@ -70,6 +71,12 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   if (!url.protocol.startsWith("http")) return;
 
+  // Handle navigation requests separately to manage redirects correctly
+  if (request.mode === "navigate") {
+    event.respondWith(handleNavigation(request));
+    return;
+  }
+
   // API calls — network first, fall back to cache
   if (url.pathname.includes("/api/")) {
     event.respondWith(networkFirstWithCache(request, API_CACHE));
@@ -86,8 +93,53 @@ self.addEventListener("fetch", (event) => {
   }
 
   // App pages — cache first for instant load, network to update cache (stale-while-revalidate)
-  event.respondWith(staleWhileRevalidate(request, SHELL_CACHE));
+  // EXCEPT for the root path ('/'), which we always fetch fresh to avoid hydration "ghosting"
+  // AND for auth pages which should also be fresh to avoid stale session state UI
+  if (
+    url.pathname === "/" ||
+    url.pathname === "" ||
+    url.pathname === "/login" ||
+    url.pathname === "/register"
+  ) {
+    return; // Let browser handle these normally via network
+  }
+
+  // For /documents, we cache the shell for instant UI loading
+  if (url.pathname.startsWith("/documents")) {
+    event.respondWith(staleWhileRevalidate(request, SHELL_CACHE));
+    return;
+  }
+
+  // Default fetch behavior for other requests
+  // ...
 });
+
+async function handleNavigation(request) {
+  try {
+    // For navigation requests, we fetch and allow the browser to handle redirects
+    // if we return an opaqueredirect. Or we can follow them ourselves.
+    // The simplest is to use staleWhileRevalidate but handle the redirect case.
+    const cache = await caches.open(SHELL_CACHE);
+    const cached = await cache.match(request);
+
+    const networkFetch = fetch(request).then((response) => {
+      // If the response is redirected, don't cache it
+      if (response.ok && !response.redirected) {
+        cache.put(request, response.clone());
+      }
+      return response;
+    });
+
+    // If it's a navigation, we want to return the redirected response to the browser
+    // so it can follow it, BUT if the browser's redirect mode is 'manual',
+    // we must return the opaqueredirect response.
+    // fetch(request) does this automatically if request.redirect is 'manual'.
+
+    return cached ?? (await networkFetch);
+  } catch {
+    return caches.match(request) || new Response("Offline", { status: 503 });
+  }
+}
 
 // Cache strategies
 
@@ -97,7 +149,9 @@ async function cacheFirstWithNetwork(request, cacheName) {
 
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    // Cannot cache a redirected response if we want to return it as a FetchEvent result
+    // for a navigation request (where redirect mode is often 'manual')
+    if (response.ok && !response.redirected) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
@@ -110,7 +164,7 @@ async function cacheFirstWithNetwork(request, cacheName) {
 async function networkFirstWithCache(request, cacheName) {
   try {
     const response = await fetch(request);
-    if (response.ok) {
+    if (response.ok && !response.redirected) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
     }
@@ -132,13 +186,22 @@ async function staleWhileRevalidate(request, cacheName) {
   // Revalidate in background regardless of whether we have cache
   const networkFetch = fetch(request)
     .then((response) => {
-      if (response.ok) cache.put(request, response.clone());
+      // Don't cache redirected responses for navigation requests
+      if (
+        response.ok &&
+        !response.redirected &&
+        response.type !== "opaqueredirect"
+      ) {
+        cache.put(request, response.clone());
+      }
       return response;
     })
-    .catch(() => null);
+    .catch((err) => {
+      console.warn("SW: Background revalidate failed", err);
+      return null;
+    });
 
   // Return cache immediately if available, else wait for network
-  return (
-    cached ?? (await networkFetch) ?? new Response("Offline", { status: 503 })
-  );
+  const response = cached ?? (await networkFetch);
+  return response ?? new Response("Offline", { status: 503 });
 }

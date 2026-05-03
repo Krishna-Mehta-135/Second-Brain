@@ -37,7 +37,7 @@ export function ConnectionStatus() {
       error: { dot: "bg-red-500", label: "Disconnected", show: true },
     };
 
-  const config = configs[status];
+  const config = configs[status as Status];
 
   if (!config.show) return null;
 

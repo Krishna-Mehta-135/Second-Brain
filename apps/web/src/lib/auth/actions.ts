@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 // Note: API_URL should be defined in .env as a server-side only variable
-const API_URL = process.env.API_URL || "http://localhost:9898";
+const API_URL = process.env.API_URL || "http://127.0.0.1:9898";
 
 export type ActionState = {
   error?: string;
@@ -14,28 +14,30 @@ export async function loginAction(prevState: ActionState, formData: FormData) {
   const password = formData.get("password") as string;
 
   try {
-    const res = await fetch(`${API_URL}/auth/login`, {
+    const res = await fetch(`${API_URL}/api/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ credential: email, password }),
     });
 
+    const json = await res.json();
+
     if (!res.ok) {
-      const error = await res.json();
-      return { error: error.message ?? "Invalid credentials" };
+      return { error: json.message ?? "Invalid credentials" };
     }
 
-    const { token } = await res.json();
+    const token = json.data.token;
     const cookieStore = await cookies();
 
     cookieStore.set("session", token, {
-      httpOnly: true, // JS cannot read this — XSS protection
+      httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: "/",
     });
-  } catch {
+  } catch (err) {
+    console.error("Login Error:", err);
     return { error: "Connection failed" };
   }
 
@@ -46,7 +48,7 @@ export async function registerAction(
   prevState: ActionState,
   formData: FormData,
 ) {
-  const name = formData.get("name") as string;
+  const username = formData.get("username") as string;
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
@@ -55,23 +57,35 @@ export async function registerAction(
     return { error: "Passwords do not match" };
   }
 
-  if (password.length < 8) {
-    return { error: "Password must be at least 8 characters" };
-  }
-
   try {
-    const res = await fetch(`${API_URL}/auth/register`, {
+    const res = await fetch(`${API_URL}/api/v1/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ username, email, password }),
     });
 
     if (!res.ok) {
-      const error = await res.json();
-      return { error: error.message ?? "Registration failed" };
+      const json = await res.json();
+      console.error("[registerAction] Registration failed:", {
+        status: res.status,
+        message: json.message,
+        errors: json.errors,
+      });
+      if (json.errors) {
+        // Extract first error from zod results
+        const errorMsg =
+          json.errors.password?._errors?.[0] ||
+          json.errors.username?._errors?.[0] ||
+          json.errors.email?._errors?.[0] ||
+          json.message;
+        return { error: errorMsg };
+      }
+      return { error: json.message ?? "Registration failed" };
     }
 
-    const { token } = await res.json();
+    const json = await res.json();
+
+    const token = json.data.token;
     const cookieStore = await cookies();
 
     cookieStore.set("session", token, {
@@ -81,7 +95,8 @@ export async function registerAction(
       maxAge: 60 * 60 * 24 * 7,
       path: "/",
     });
-  } catch {
+  } catch (err) {
+    console.error("Register Error:", err);
     return { error: "Connection failed" };
   }
 

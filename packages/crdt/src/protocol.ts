@@ -60,14 +60,27 @@ export class ProtocolCodec {
         payload = message.state;
         break;
       case "ai-update": {
+        // Frame: [requestIdLen:1][isDone:1][textLen:2LE][requestId:N][text:M][update:K]
         const requestIdBytes = new TextEncoder().encode(message.requestId);
+        const textBytes = new TextEncoder().encode(message.text);
+        const headerSize = 4; // requestIdLen(1) + isDone(1) + textLen(2)
         payload = new Uint8Array(
-          2 + requestIdBytes.length + message.update.length,
+          headerSize +
+            requestIdBytes.length +
+            textBytes.length +
+            message.update.length,
         );
         payload[0] = requestIdBytes.length;
         payload[1] = message.isDone ? 1 : 0;
-        payload.set(requestIdBytes, 2);
-        payload.set(message.update, 2 + requestIdBytes.length);
+        // textLen as little-endian uint16
+        payload[2] = textBytes.length & 0xff;
+        payload[3] = (textBytes.length >> 8) & 0xff;
+        payload.set(requestIdBytes, headerSize);
+        payload.set(textBytes, headerSize + requestIdBytes.length);
+        payload.set(
+          message.update,
+          headerSize + requestIdBytes.length + textBytes.length,
+        );
         break;
       }
       case "ai-request": {
@@ -130,13 +143,24 @@ export class ProtocolCodec {
       case "awareness":
         return { type, state: new Uint8Array(payload) };
       case "ai-update": {
+        // Frame: [requestIdLen:1][isDone:1][textLen:2LE][requestId:N][text:M][update:K]
         const requestIdLen = payload[0] ?? 0;
         const isDone = payload[1] === 1;
+        const textLen = (payload[2] ?? 0) | ((payload[3] ?? 0) << 8);
+        const headerSize = 4;
         const requestId = new TextDecoder().decode(
-          payload.subarray(2, 2 + requestIdLen),
+          payload.subarray(headerSize, headerSize + requestIdLen),
         );
-        const update = new Uint8Array(payload.subarray(2 + requestIdLen));
-        return { type, update, requestId, isDone };
+        const text = new TextDecoder().decode(
+          payload.subarray(
+            headerSize + requestIdLen,
+            headerSize + requestIdLen + textLen,
+          ),
+        );
+        const update = new Uint8Array(
+          payload.subarray(headerSize + requestIdLen + textLen),
+        );
+        return { type, update, text, requestId, isDone };
       }
       case "ai-request": {
         const json = new TextDecoder().decode(payload);

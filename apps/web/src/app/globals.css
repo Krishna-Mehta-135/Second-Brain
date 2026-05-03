@@ -53,6 +53,10 @@
 
 @source "../../packages/ui/src/**/*.{ts,tsx}";
 
+html {
+  scroll-behavior: smooth;
+}
+
 @layer base {
   :root {
     /* Brand */
@@ -127,6 +131,47 @@
     --editor-bg: 224 71% 4%;
     --muted-foreground: 215 20.2% 65.1%;
   }
+
+  /* Second Brain New Design Variables */
+  .sb-root {
+    --sb-bg: 240 10% 4%;
+    --sb-bg-panel: 240 10% 6%;
+    --sb-bg-hover: 240 10% 9%;
+    --sb-text: 0 0% 95%;
+    --sb-text-muted: 240 5% 65%;
+    --sb-text-faint: 240 5% 40%;
+    --sb-border: 240 10% 12%;
+    --sb-border-hover: 240 10% 18%;
+    --sb-accent: 255 85% 65%;
+    --sb-accent-glow: 255 85% 65%;
+    --sb-danger: 350 85% 60%;
+    --sb-success: 150 80% 45%;
+
+    /* Map to shadcn variables */
+    --background: var(--sb-bg);
+    --foreground: var(--sb-text);
+    --muted: var(--sb-bg-panel);
+    --muted-foreground: var(--sb-text-muted);
+    --accent: var(--sb-bg-hover);
+    --accent-foreground: var(--sb-text);
+    --border: var(--sb-border);
+    --input: var(--sb-border);
+    --primary: var(--sb-accent);
+    --primary-foreground: 0 0% 100%;
+    --card: var(--sb-bg-panel);
+    --card-foreground: var(--sb-text);
+    --popover: var(--sb-bg-panel);
+    --popover-foreground: var(--sb-text);
+    --brand: var(--sb-accent);
+    --brand-foreground: 0 0% 100%;
+    --surface: var(--sb-bg-panel);
+    --surface-hover: var(--sb-bg-hover);
+
+    background-color: hsl(var(--sb-bg));
+    color: hsl(var(--sb-text));
+  }
+
+  .sb-root * { border-color: hsl(var(--sb-border)); }
 
   * {
     border-color: hsl(var(--border));
@@ -217,3 +262,43 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* New Design Animations & Utilities */
+@keyframes sbGradientDrift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.sb-animate-drift { background-size: 200% 200%; animation: sbGradientDrift 15s ease infinite; }
+
+@keyframes sbFadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sb-animate-in { opacity: 0; animation: sbFadeSlideUp 0.6s cubic-bezier(0.2,0.8,0.2,1) forwards; }
+
+@keyframes sbFloatNode {
+  0%   { transform: translateY(0px)   rotate(0deg); }
+  50%  { transform: translateY(-10px) rotate(2deg); }
+  100% { transform: translateY(0px)   rotate(0deg); }
+}
+.sb-float { animation: sbFloatNode 6s ease-in-out infinite; }
+
+@keyframes sbShake {
+  0%,100% { transform: translateX(0);  }
+  25%      { transform: translateX(-4px); }
+  75%      { transform: translateX(4px);  }
+}
+.sb-shake { animation: sbShake 0.2s ease-in-out 0s 2; }
+
+.sb-glow       { box-shadow: 0 0 40px -10px hsla(var(--sb-accent-glow)/0.3); }
+.sb-glow-hover:hover { box-shadow: 0 0 30px -5px hsla(var(--sb-accent-glow)/0.4); }
+.sb-glass {
+  background: hsla(var(--sb-bg-panel)/0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid hsla(var(--sb-border)/0.8);
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(240 10% 18%); border-radius: 2px; }

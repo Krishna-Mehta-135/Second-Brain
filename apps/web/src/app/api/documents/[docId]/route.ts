@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_URL = process.env.API_URL || "http://localhost:9898";
+const API_URL = process.env.API_URL || "http://127.0.0.1:9898";
 
 export async function PATCH(
   req: NextRequest,

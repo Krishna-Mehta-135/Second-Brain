@@ -43,7 +43,7 @@ export class SyncManager {
   >();
 
   constructor(
-    private readonly docId: string,
+    public readonly docId: string,
     private readonly getToken: () => Promise<string>,
   ) {
     this.doc = new Y.Doc();
@@ -87,7 +87,7 @@ export class SyncManager {
 
     try {
       const token = await this.getToken();
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8080";
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://127.0.0.1:8080";
       const url = `${wsUrl}/ws/documents/${this.docId}?token=${encodeURIComponent(token)}`;
 
       this.ws = new WebSocket(url);
@@ -164,7 +164,11 @@ export class SyncManager {
       }
 
       case "ai-update": {
-        Y.applyUpdate(this.doc, msg.update, "remote");
+        // update is always empty now — Y.Doc is mutated client-side via Tiptap.
+        // Guard retained for forward-compatibility if update gains content again.
+        if (msg.update.length > 0) {
+          Y.applyUpdate(this.doc, msg.update, "remote");
+        }
         break;
       }
 

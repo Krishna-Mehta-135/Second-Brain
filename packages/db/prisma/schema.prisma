@@ -52,7 +52,23 @@ model Share {
 }
 
 model Document {
-  id        String   @id
+  id        String         @id
   state     Bytes
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime       @updatedAt
+  outgoing  DocumentLink[] @relation("FromDoc")
+  incoming  DocumentLink[] @relation("ToDoc")
+}
+
+/**
+ * Tracks wiki-style [[Document Title]] backlinks between documents.
+ * Updated whenever the editor detects link changes in content.
+ */
+model DocumentLink {
+  fromDocId  String
+  toDocId    String
+  fromDoc    Document @relation("FromDoc", fields: [fromDocId], references: [id], onDelete: Cascade)
+  toDoc      Document @relation("ToDoc", fields: [toDocId], references: [id], onDelete: Cascade)
+
+  @@id([fromDocId, toDocId])
+  @@index([toDocId])
 }

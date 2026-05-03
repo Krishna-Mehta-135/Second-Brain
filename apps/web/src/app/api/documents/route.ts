@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_URL = process.env.API_URL || "http://localhost:9898";
+const API_URL = process.env.API_URL || "http://127.0.0.1:9898";
 
 interface BackendContent {
   id: string;
@@ -84,8 +84,10 @@ export async function POST(req: NextRequest) {
     });
 
     if (!res.ok) {
+      const errorJson = await res.json().catch(() => ({}));
+      console.error("Backend Error:", errorJson);
       return NextResponse.json(
-        { error: "Failed to create" },
+        { error: "Failed to create", details: errorJson },
         { status: res.status },
       );
     }

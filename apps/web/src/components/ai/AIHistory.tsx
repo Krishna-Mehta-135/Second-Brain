@@ -38,7 +38,7 @@ export function AIHistory({ onReuse }: AIHistoryProps) {
   if (history.length === 0) {
     return (
       <div className="py-4 text-center">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-white/70">
           Your recent prompts will appear here
         </p>
       </div>
@@ -47,7 +47,7 @@ export function AIHistory({ onReuse }: AIHistoryProps) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+      <p className="text-xs font-bold text-white/70 uppercase tracking-wider">
         Recent
       </p>
       <div className="space-y-1">
@@ -55,7 +55,7 @@ export function AIHistory({ onReuse }: AIHistoryProps) {
           <button
             key={i}
             onClick={() => onReuse(item.text)}
-            className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-surface-hover text-foreground/70 hover:text-foreground truncate transition-colors"
+            className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-[hsl(var(--sb-bg-hover))] text-white/90 hover:text-white transition-colors whitespace-pre-wrap line-clamp-3"
           >
             {item.text}
           </button>

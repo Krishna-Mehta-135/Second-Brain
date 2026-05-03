@@ -12,7 +12,7 @@ export function useDocument() {
     doc: ctx.doc,
     awareness: ctx.awareness,
     status: ctx.status,
-    isOffline: ctx.isOffline,
+    isOffline: ctx.status === "offline",
     isSyncing: ctx.status === "syncing",
     isConnected: ctx.status === "connected",
   };

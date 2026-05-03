@@ -1,62 +1,23 @@
-"use client";
-
-import { useState, type ReactNode } from "react";
-import { Sidebar } from "@/components/shell/Sidebar";
-import { MobileSidebarDrawer } from "@/components/shell/MobileSidebarDrawer";
+import { AppShell } from "@/components/shell/AppShell";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { DocumentsProvider } from "@/lib/documents/useDocuments";
-import { useAuth } from "@/lib/auth/useAuth";
-import { Menu } from "lucide-react";
-import { LoadingSpinner } from "@repo/ui";
 
-export default function AppLayout({ children }: { children: ReactNode }) {
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const auth = useAuth();
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const cookieStore = await cookies();
+  const session = cookieStore.get("session")?.value;
 
-  if (auth.status === "loading") {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  // If unauthenticated, we'll likely be redirected by proxy.ts (middleware)
-  // but we return null here to avoid rendering the shell with no user
-  if (auth.status === "unauthenticated") {
-    return null;
+  if (!session) {
+    redirect("/login");
   }
 
   return (
     <DocumentsProvider>
-      <div className="flex h-screen overflow-hidden bg-background">
-        {/* Desktop sidebar */}
-        <aside className="hidden md:flex w-64 shrink-0 flex-col">
-          <Sidebar />
-        </aside>
-
-        {/* Mobile sidebar drawer */}
-        <MobileSidebarDrawer
-          open={mobileSidebarOpen}
-          onClose={() => setMobileSidebarOpen(false)}
-        />
-
-        {/* Main content */}
-        <main className="flex-1 overflow-hidden flex flex-col">
-          {/* Mobile header with hamburger */}
-          <div className="md:hidden flex items-center h-12 px-4 border-b border-border bg-surface">
-            <button
-              onClick={() => setMobileSidebarOpen(true)}
-              className="p-1.5 rounded hover:bg-surface-hover transition-colors"
-              aria-label="Open sidebar"
-            >
-              <Menu className="h-5 w-5 text-muted-foreground" />
-            </button>
-            <span className="ml-3 font-semibold text-sm">Second Brain</span>
-          </div>
-
-          <div className="flex-1 overflow-auto">{children}</div>
-        </main>
-      </div>
+      <AppShell>{children}</AppShell>
     </DocumentsProvider>
   );
 }

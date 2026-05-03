@@ -5,10 +5,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type { InsertPosition } from "@repo/types";
 import { Sparkles, XCircle } from "lucide-react";
+import type { Editor } from "@tiptap/react";
 
 type InsertMode = "cursor" | "append" | "replace";
 
 interface AIPromptFormProps {
+  editor: Editor | null;
   status: "idle" | "writing" | "done" | "error" | "cancelled";
   onSubmit: (options: {
     prompt: string;
@@ -19,6 +21,7 @@ interface AIPromptFormProps {
 }
 
 export function AIPromptForm({
+  editor,
   status,
   onSubmit,
   onCancel,
@@ -42,7 +45,7 @@ export function AIPromptForm({
     if (!prompt.trim() || isWriting) return;
     onSubmit({
       prompt: prompt.trim(),
-      insertPosition: resolvePosition(mode),
+      insertPosition: resolvePosition(mode, editor),
     });
   }
 
@@ -108,7 +111,7 @@ export function AIPromptForm({
           onKeyDown={handleKeyDown}
           disabled={isWriting}
           placeholder={getPlaceholder(mode)}
-          className="min-h-32 resize-none text-sm bg-surface/50 focus:bg-surface transition-colors"
+          className="min-h-32 resize-none text-sm !bg-[#050505] !text-[#f0f0f0] border-[hsl(var(--sb-border))] focus:border-[hsl(var(--sb-accent))] transition-colors placeholder:text-white/20"
           rows={5}
         />
       </div>
@@ -116,7 +119,7 @@ export function AIPromptForm({
       {/* Actions */}
       {isWriting ? (
         <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2 text-brand">
+          <div className="flex items-center gap-2 text-[hsl(var(--sb-accent))]">
             <Sparkles className="h-3 w-3 animate-pulse" />
             <span className="text-xs font-medium animate-pulse">
               AI is writing...
@@ -126,7 +129,7 @@ export function AIPromptForm({
             variant="ghost"
             size="sm"
             onClick={onCancel}
-            className="h-8 text-[11px] text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
+            className="h-8 text-[11px] text-[hsl(var(--sb-danger))] hover:text-[hsl(var(--sb-danger))] hover:bg-[hsl(var(--sb-danger))]/10 gap-1.5"
           >
             <XCircle className="h-3.5 w-3.5" />
             Cancel
@@ -136,12 +139,11 @@ export function AIPromptForm({
         <Button
           onClick={handleSubmit}
           disabled={!prompt.trim()}
-          className="w-full gap-2 shadow-sm shadow-brand/20"
+          className="w-full gap-2 shadow-sm bg-[hsl(var(--sb-accent))] hover:bg-[hsl(var(--sb-accent))]/90 text-white border-none font-bold"
           size="sm"
         >
-          <Sparkles className="h-3.5 w-3.5" />
-          <span>Generate Content</span>
-          <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+          <span>Generate Response</span>
+          <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-white/20 bg-white/10 px-1.5 font-mono text-[10px] font-medium text-white/60 opacity-100">
             <span className="text-xs">⌘</span>↵
           </kbd>
         </Button>
@@ -158,8 +160,24 @@ function getPlaceholder(mode: InsertMode): string {
   return "Rewrite this selection to be more professional and concise...";
 }
 
-function resolvePosition(mode: InsertMode): InsertPosition {
+function resolvePosition(
+  mode: InsertMode,
+  editor: Editor | null,
+): InsertPosition {
   if (mode === "append") return { type: "append" };
+
+  if (editor) {
+    const { from, to } = editor.state.selection;
+
+    if (mode === "replace") {
+      return { type: "replace", startOffset: from, endOffset: to };
+    }
+
+    // Default to cursor position
+    return { type: "cursor", offset: from };
+  }
+
+  // Fallback if editor is not available
   if (mode === "replace")
     return { type: "replace", startOffset: 0, endOffset: 0 };
   return { type: "cursor", offset: 0 };

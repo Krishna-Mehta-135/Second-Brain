@@ -1,53 +1,166 @@
 "use client";
+
 import { useDocument } from "@/lib/sync/useDocument";
+import { useEditor, AnyExtension } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Collaboration from "@tiptap/extension-collaboration";
+import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
+import Placeholder from "@tiptap/extension-placeholder";
+import Typography from "@tiptap/extension-typography";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import Link from "@tiptap/extension-link";
+import CharacterCount from "@tiptap/extension-character-count";
+import { Markdown } from "tiptap-markdown";
+import { WikiLink } from "./extensions/WikiLink";
+import * as awarenessProtocol from "y-protocols/awareness";
+import * as Y from "yjs";
+import { useAuth } from "@/lib/auth/useAuth";
+import { User } from "@/lib/auth/types";
+import { getCursorColor } from "@/lib/utils/color";
+
 import { EditorContent } from "./EditorContent";
+import { EditorSkeleton } from "./EditorSkeleton";
 import { CollaboratorBar } from "./CollaboratorBar";
-import { AIPanel } from "@/components/ai/AIPanel";
+import { WordCount } from "./WordCount";
+import { EditorToolbar } from "./EditorToolbar";
 import { ConnectionStatus } from "@/components/status/ConnectionStatus";
 import { OfflineBanner } from "@/components/status/OfflineBanner";
-import { PendingSyncBadge } from "@/components/status/PendingSyncBadge";
-import { WordCount } from "./WordCount";
-import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { AIPanel } from "@/components/ai/AIPanel";
+import { useBacklinks } from "@/lib/documents/useBacklinks";
+import { useDocuments } from "@/lib/documents/useDocuments";
 
 export function EditorPage() {
-  const { doc } = useDocument();
+  const { doc, awareness } = useDocument();
+  const auth = useAuth();
 
-  useKeyboardShortcuts([
-    {
-      key: "k",
-      meta: true,
-      action: () => console.log("Command palette requested"),
-      description: "Open command palette",
-    },
-    {
-      key: "/",
-      meta: true,
-      action: () => console.log("AI panel requested"),
-      description: "Toggle AI panel",
-    },
-  ]);
+  if (auth.status !== "authenticated" || !doc || !awareness) {
+    return <EditorSkeleton />;
+  }
 
   return (
-    <div className="flex flex-col h-full bg-background text-foreground">
+    <EditorContentWrapper
+      doc={doc}
+      awareness={awareness}
+      user={auth.session.user}
+    />
+  );
+}
+
+function EditorContentWrapper({
+  doc,
+  awareness,
+  user,
+}: {
+  doc: Y.Doc;
+  awareness: awarenessProtocol.Awareness;
+  user: User;
+}) {
+  const { docId } = useDocument();
+  const { documents } = useDocuments();
+  const { updateLinks } = useBacklinks(docId);
+
+  const editor = useEditor(
+    {
+      extensions: [
+        (StarterKit as AnyExtension).configure({ history: false }),
+        Collaboration.configure({ document: doc, field: "content" }),
+        CollaborationCursor.configure({
+          provider: { awareness, document: doc },
+          user: { name: user.name, color: getCursorColor(user.id) },
+        }),
+        Placeholder.configure({
+          placeholder: ({ node }) =>
+            node.type.name === "heading"
+              ? "Heading..."
+              : "Write something, or press Space to use AI...",
+          showOnlyCurrent: true,
+        }),
+        Typography,
+        CharacterCount.configure({ limit: 10000 }),
+        TaskList,
+        TaskItem.configure({ nested: true }),
+        Link.configure({
+          openOnClick: false,
+          HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+        }),
+        Markdown.configure({
+          html: false,
+          tightLists: true,
+          linkify: true,
+        }),
+        WikiLink,
+      ],
+      editorProps: {
+        attributes: {
+          class:
+            "prose prose-invert prose-sm sm:prose-base lg:prose-lg focus:outline-none max-w-none min-h-[500px] text-[15px] leading-relaxed text-[hsl(var(--sb-text))]",
+          spellcheck: "true",
+        },
+      },
+      immediatelyRender: false,
+      onUpdate: ({ editor }) => {
+        // Extract all wiki links and update backend
+        const json = editor.getJSON();
+        const titles = new Set<string>();
+
+        const extractTitles = (node: Record<string, unknown>) => {
+          if (
+            node.type === "wikiLink" &&
+            typeof (node.attrs as Record<string, unknown>)?.title === "string"
+          ) {
+            titles.add((node.attrs as Record<string, unknown>).title as string);
+          }
+          if (Array.isArray(node.content)) {
+            node.content.forEach(extractTitles);
+          }
+        };
+
+        extractTitles(json as Record<string, unknown>);
+
+        // Resolve titles to doc IDs
+        const ids = Array.from(titles)
+          .map((title) => {
+            const doc = documents.find(
+              (d) => d.title.toLowerCase() === title.toLowerCase(),
+            );
+            return doc?.id;
+          })
+          .filter(Boolean) as string[];
+
+        updateLinks(ids);
+      },
+    },
+    [doc, awareness, documents, updateLinks],
+  );
+
+  return (
+    <div className="flex flex-col h-full bg-transparent text-[hsl(var(--sb-text))]">
+      {/* Offline banner */}
       <OfflineBanner />
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between h-12 px-4 border-b border-border shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <ConnectionStatus />
-            <CollaboratorBar />
-          </div>
-          <PendingSyncBadge />
+      {/* Toolbar */}
+      <EditorToolbar editor={editor} />
+
+      {/* Editor + AI panel */}
+      <div className="flex flex-1 overflow-hidden relative">
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <EditorContent editor={editor} />
+        </div>
+
+        {/* Absolute positioned AI panel for better integration with the new layout */}
+        <div className="absolute right-4 top-4 z-20">
+          <AIPanel editor={editor} />
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <EditorContent doc={doc} />
-          <WordCount />
+      {/* Footer info */}
+      <div className="h-8 px-4 flex items-center justify-between border-t border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] shrink-0">
+        <WordCount />
+        <div className="flex items-center gap-3">
+          <CollaboratorBar />
+          <ConnectionStatus />
         </div>
-        <AIPanel />
       </div>
     </div>
   );

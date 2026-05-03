@@ -1,16 +1,16 @@
-import * as Y from 'yjs';
-import { DocumentManager } from './document-manager.js';
-import { encodeMessage } from './protocol.js';
-import { RoomManager } from './room-manager.js';
-import { RedisTransport } from './redis-transport.js';
-import { TokenBucket } from './token-bucket.js';
-import { mergeUpdates } from '@repo/crdt';
+import * as Y from "yjs";
+import { DocumentManager } from "./document-manager.js";
+import { encodeMessage } from "./protocol.js";
+import { RoomManager } from "./room-manager.js";
+import { RedisTransport } from "./redis-transport.js";
+import { TokenBucket } from "./token-bucket.js";
+import { mergeUpdates } from "@repo/crdt";
 
 const COALESCE_INTERVAL_MS = 16;
 /**
  * Per-document broadcast rate limit.
  * Capacity: 200 messages burst, Refill: 200/s.
- * This prevents a single room from saturating the event loop/network 
+ * This prevents a single room from saturating the event loop/network
  * even if multiple clients are typing simultaneously.
  */
 const DOC_LIMIT_CAPACITY = 200;
@@ -19,7 +19,6 @@ const DOC_LIMIT_REFILL = 200;
 interface CoalesceBuffer {
   updates: Uint8Array[];
   flushTimer: NodeJS.Timeout | null;
-  lastAIRequestId: string | null;
   senders: Set<string>;
 }
 
@@ -33,7 +32,7 @@ export class CoalesceBufferManager {
   constructor(
     documentManager: DocumentManager,
     roomManager: RoomManager,
-    redisTransport: RedisTransport
+    redisTransport: RedisTransport,
   ) {
     this.documentManager = documentManager;
     this.roomManager = roomManager;
@@ -41,30 +40,27 @@ export class CoalesceBufferManager {
   }
 
   /**
-   * Enqueues an update for a document. 
+   * Enqueues an update for a document.
    * Flushes after 16ms (one animation frame).
    */
   public enqueueUpdate(
-    docId: string, 
-    update: Uint8Array, 
-    originClientId?: string, 
-    requestId?: string
+    docId: string,
+    update: Uint8Array,
+    originClientId?: string,
   ): void {
     let buffer = this.buffers.get(docId);
-    
+
     if (!buffer) {
-      buffer = { 
-        updates: [], 
-        flushTimer: null, 
-        lastAIRequestId: null,
-        senders: new Set<string>() 
+      buffer = {
+        updates: [],
+        flushTimer: null,
+        senders: new Set<string>(),
       };
       this.buffers.set(docId, buffer);
     }
 
     buffer.updates.push(update);
     if (originClientId) buffer.senders.add(originClientId);
-    if (requestId) buffer.lastAIRequestId = requestId;
 
     if (!buffer.flushTimer) {
       buffer.flushTimer = setTimeout(() => {
@@ -78,11 +74,15 @@ export class CoalesceBufferManager {
    * Applied directly to the document and broadcasted to all local clients.
    * External updates are subject to the same document-level rate limiting.
    */
-  public async handleExternalUpdate(docId: string, update: Uint8Array, originClientId: string): Promise<void> {
-    // External updates don't use the coalesce buffer because they are 
-    // already coalesced by the originating instance. 
+  public async handleExternalUpdate(
+    docId: string,
+    update: Uint8Array,
+    originClientId: string,
+  ): Promise<void> {
+    // External updates don't use the coalesce buffer because they are
+    // already coalesced by the originating instance.
     // However, we apply directly but must respect the local room's broadcast limit.
-    
+
     const bucket = this.getDocBucket(docId);
     if (!bucket.consume()) {
       // If doc-level rate limited, we redirect to the coalesce buffer to delay
@@ -92,13 +92,16 @@ export class CoalesceBufferManager {
 
     const applyResult = await this.documentManager.applyUpdate(docId, update);
     if (!applyResult.ok) {
-      console.error(`Failed to apply external update for ${docId}:`, applyResult.error.message);
+      console.error(
+        `Failed to apply external update for ${docId}:`,
+        applyResult.error.message,
+      );
       return;
     }
 
     const encodedMsg = encodeMessage({
-      type: 'update',
-      update: update
+      type: "update",
+      update: update,
     });
 
     await this.roomManager.broadcast(docId, encodedMsg);
@@ -137,11 +140,9 @@ export class CoalesceBufferManager {
 
     const updatesToFlush = buffer.updates;
     const senders = buffer.senders;
-    const aiRequestId = buffer.lastAIRequestId;
 
     buffer.updates = [];
     buffer.senders = new Set<string>();
-    buffer.lastAIRequestId = null;
     buffer.flushTimer = null;
 
     try {
@@ -149,32 +150,31 @@ export class CoalesceBufferManager {
       const mergedUpdate = mergeUpdates(updatesToFlush);
 
       // 2. Apply merged update once to the server doc
-      const applyResult = await this.documentManager.applyUpdate(docId, mergedUpdate);
+      const applyResult = await this.documentManager.applyUpdate(
+        docId,
+        mergedUpdate,
+      );
       if (!applyResult.ok) {
-        console.error(`Failed to apply merged update for ${docId}:`, applyResult.error.message);
+        console.error(
+          `Failed to apply merged update for ${docId}:`,
+          applyResult.error.message,
+        );
         return;
       }
 
       // 3. Broadcast merged update once to all local clients in the room
-      const encodedMsg = aiRequestId 
-        ? encodeMessage({
-            type: 'ai-update',
-            update: mergedUpdate,
-            requestId: aiRequestId,
-            isDone: false
-          })
-        : encodeMessage({
-            type: 'update',
-            update: mergedUpdate
-          });
-      
-      const excludeClientId = senders.size === 1 ? Array.from(senders)[0] : undefined;
+      const encodedMsg = encodeMessage({
+        type: "update",
+        update: mergedUpdate,
+      });
+
+      const excludeClientId =
+        senders.size === 1 ? Array.from(senders)[0] : undefined;
       await this.roomManager.broadcast(docId, encodedMsg, excludeClientId);
 
       // 4. Redis Publish — fire and forget
-      const primaryOriginId = Array.from(senders)[0] || 'server-merged';
+      const primaryOriginId = Array.from(senders)[0] || "server-merged";
       this.redisTransport.publish(docId, mergedUpdate, primaryOriginId);
-
     } catch (error) {
       console.error(`Error during coalescing flush for ${docId}:`, error);
     } finally {
@@ -185,11 +185,11 @@ export class CoalesceBufferManager {
   }
 
   /**
-   * Forces an immediate flush of all pending buffers. 
+   * Forces an immediate flush of all pending buffers.
    * Useful during graceful shutdown.
    */
   public async flushAll(): Promise<void> {
     const docIds = Array.from(this.buffers.keys());
-    await Promise.all(docIds.map(id => this.flushBuffer(id)));
+    await Promise.all(docIds.map((id) => this.flushBuffer(id)));
   }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import * as Y from "yjs";
 import { useEffect, useRef, useState } from "react";
 import { useSyncManager } from "@/lib/sync/SyncContext";
 
@@ -29,11 +30,16 @@ export function EditorTitle({
     setTitle(yTitle.toString());
 
     // Watch for changes from other collaborators
-    const observer = () => {
-      const newTitle = yTitle.toString();
-      setTitle(newTitle);
-      // Update the page title (browser tab)
-      document.title = newTitle || "Untitled — Second Brain";
+    const observer = (_?: unknown, transaction?: Y.Transaction) => {
+      // ONLY update state if change is from remote (collaboration)
+      // Local changes are already reflected in the contentEditable
+      // transaction is undefined on initial call
+      if (!transaction || transaction.origin !== null) {
+        const newTitle = yTitle.toString();
+        setTitle(newTitle);
+        // Update the page title (browser tab)
+        document.title = newTitle || "Untitled — Second Brain";
+      }
     };
 
     yTitle.observe(observer);
@@ -98,10 +104,10 @@ export function EditorTitle({
       onKeyDown={handleKeyDown}
       data-placeholder={placeholder}
       className={`
-        text-4xl font-bold text-foreground leading-tight
+        text-5xl font-bold text-white mb-4 leading-tight tracking-tight
         outline-none focus:outline-none
         empty:before:content-[attr(data-placeholder)]
-        empty:before:text-muted-foreground/40
+        empty:before:text-[hsl(var(--sb-text-faint))]
         cursor-text
         transition-colors
       `}

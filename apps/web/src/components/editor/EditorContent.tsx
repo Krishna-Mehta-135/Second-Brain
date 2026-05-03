@@ -1,111 +1,43 @@
 "use client";
-import { useEditor, EditorContent as TiptapEditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Collaboration from "@tiptap/extension-collaboration";
-import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
-import Placeholder from "@tiptap/extension-placeholder";
-import Typography from "@tiptap/extension-typography";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import Link from "@tiptap/extension-link";
-import CharacterCount from "@tiptap/extension-character-count";
-import type * as Y from "yjs";
-import * as awarenessProtocol from "y-protocols/awareness";
-import { useUser } from "@/lib/auth/useAuth";
+import {
+  EditorContent as TiptapEditorContent,
+  type Editor,
+} from "@tiptap/react";
 import { useDocument } from "@/lib/sync/useDocument";
-import { getCursorColor } from "@/lib/utils/color";
-import { EditorToolbar } from "./EditorToolbar";
 import { EditorSkeleton } from "./EditorSkeleton";
 import { EditorTitle } from "./EditorTitle";
+import { BacklinksPanel } from "./BacklinksPanel";
 
 interface EditorContentProps {
-  doc: Y.Doc;
+  editor: Editor | null;
 }
 
-export function EditorContent({ doc }: EditorContentProps) {
-  const user = useUser();
+export function EditorContent({ editor }: EditorContentProps) {
   const { docId } = useDocument();
-
-  const editor = useEditor(
-    {
-      extensions: [
-        StarterKit.configure({
-          undoRedo: false, // MANDATORY: Y.UndoManager handles this (Tiptap 3)
-        }),
-
-        Collaboration.configure({
-          document: doc,
-          field: "content", // Y.XmlFragment key — must match backend exactly
-        }),
-
-        CollaborationCursor.configure({
-          provider: {
-            // We implement our own awareness via WebSocket messages
-            // This shim satisfies Tiptap's interface
-            awareness: {
-              getLocalState: () => ({
-                user: { name: user.name, color: getCursorColor(user.id) },
-              }),
-              on: () => {},
-              off: () => {},
-              setLocalStateField: () => {},
-            } as unknown as awarenessProtocol.Awareness,
-          },
-          user: { name: user.name, color: getCursorColor(user.id) },
-        }),
-
-        Placeholder.configure({
-          placeholder: ({ node }) => {
-            if (node.type.name === "heading") return "Heading...";
-            return "Write something, or press Space to use AI...";
-          },
-          showOnlyCurrent: true,
-        }),
-
-        Typography, // auto smart quotes, em dashes
-
-        CharacterCount.configure({
-          limit: 10000,
-        }),
-
-        TaskList,
-        TaskItem.configure({ nested: true }),
-
-        Link.configure({
-          openOnClick: false,
-          HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
-        }),
-      ],
-
-      editorProps: {
-        attributes: {
-          class:
-            "prose prose-sm sm:prose-base lg:prose-lg xl:prose-2xl focus:outline-none max-w-none px-4 py-8 min-h-[500px]",
-          spellcheck: "true",
-        },
-      },
-
-      // MANDATORY for Next.js — Y.Doc does not exist on the server
-      immediatelyRender: false,
-
-      onUpdate: () => {
-        // Title sync: extract first heading as document title
-        // debounce and send to API to update document metadata
-      },
-    },
-    [doc], // Recreate editor if doc changes (tab switch)
-  );
 
   if (!editor) return <EditorSkeleton />;
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <EditorToolbar editor={editor} />
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto py-12 px-4 flex flex-col gap-8">
-          <EditorTitle docId={docId} />
+    <div className="flex-1 overflow-y-auto custom-scrollbar relative scroll-smooth">
+      <div className="max-w-3xl mx-auto px-10 py-16">
+        <EditorTitle docId={docId} />
+
+        <div className="flex flex-wrap gap-2 mb-10">
+          <div className="px-2 py-0.5 rounded border border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg))] text-xs font-medium text-[hsl(var(--sb-text-muted))] hover:text-white hover:border-[hsl(var(--sb-accent))] cursor-pointer transition-colors flex items-center gap-1">
+            <span className="text-[hsl(var(--sb-accent))]">#</span>design
+          </div>
+          <div className="px-2 py-0.5 rounded border border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg))] text-xs font-medium text-[hsl(var(--sb-text-muted))] hover:text-white hover:border-[hsl(var(--sb-accent))] cursor-pointer transition-colors flex items-center gap-1">
+            <span className="text-[hsl(var(--sb-accent))]">#</span>architecture
+          </div>
+        </div>
+
+        <div className="prose prose-invert max-w-none">
           <TiptapEditorContent editor={editor} />
         </div>
+
+        <BacklinksPanel docId={docId} />
+
+        <div className="h-32" />
       </div>
     </div>
   );

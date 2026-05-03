@@ -12,20 +12,21 @@ export function WordCount() {
   const { words, characters, readingTimeMinutes } = useWordCount(manager.doc);
 
   return (
-    <div className="flex items-center gap-6 px-6 py-2 border-t border-border bg-surface/50 text-[10px] font-medium text-muted-foreground uppercase tracking-widest">
+    <div className="flex items-center gap-4 px-6 py-2 border-t border-[hsl(var(--sb-border))] bg-black text-[10px] font-bold text-white uppercase tracking-widest">
       <div className="flex items-center gap-1.5">
-        <span className="text-foreground">{words.toLocaleString()}</span>
-        <span>words</span>
+        <span>{words.toLocaleString()} words</span>
       </div>
 
+      <span className="text-white/40">|</span>
+
       <div className="flex items-center gap-1.5">
-        <span className="text-foreground">{characters.toLocaleString()}</span>
-        <span>characters</span>
+        <span>{characters.toLocaleString()} characters</span>
       </div>
 
-      <div className="flex items-center gap-1.5 ml-auto">
-        <span className="text-foreground">{readingTimeMinutes}</span>
-        <span>min read</span>
+      <span className="text-white/40 ml-auto">|</span>
+
+      <div className="flex items-center gap-1.5">
+        <span>{readingTimeMinutes} min read</span>
       </div>
     </div>
   );

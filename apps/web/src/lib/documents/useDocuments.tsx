@@ -15,7 +15,7 @@ interface DocumentsContextType {
   documents: Document[];
   isLoading: boolean;
   error: string | null;
-  createDocument: () => Promise<void>;
+  createDocument: () => Promise<Document | null>;
   deleteDocument: (docId: string) => Promise<void>;
 }
 
@@ -32,6 +32,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
   const fetchDocuments = useCallback(async () => {
     try {
       const res = await fetch("/api/documents", { credentials: "include" });
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
       if (!res.ok) throw new Error("Failed to load documents");
       const docs: Document[] = await res.json();
       setDocuments(docs.sort((a, b) => b.updatedAt - a.updatedAt));
@@ -40,7 +44,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       setError(err instanceof Error ? err.message : String(err));
       setIsLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchDocuments();
@@ -67,16 +71,22 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ title: "Untitled" }),
       });
 
+      if (res.status === 401) {
+        router.push("/login");
+        return null;
+      }
+
       if (!res.ok) throw new Error("Failed to create");
       const doc: Document = await res.json();
 
       // Replace temp with real document
       setDocuments((prev) => prev.map((d) => (d.id === tempId ? doc : d)));
-      router.push(`/documents/${doc.id}`);
+      return doc;
     } catch (err) {
       // Remove temp on failure
       setDocuments((prev) => prev.filter((d) => d.id !== tempId));
       console.error("Failed to create document:", err);
+      return null;
     }
   }, [router]);
 
@@ -91,6 +101,12 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
           method: "DELETE",
           credentials: "include",
         });
+
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
+
         if (!res.ok) throw new Error("Failed to delete");
       } catch (err) {
         // Rollback on failure
@@ -98,7 +114,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         console.error("Failed to delete document:", err);
       }
     },
-    [documents],
+    [documents, router],
   );
 
   return (
