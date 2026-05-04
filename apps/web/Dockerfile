@@ -71,5 +71,5 @@ RUN addgroup --system --gid 1001 nodejs && \
 USER nextjs
 
 EXPOSE 3000
-# server.js is at the root of the standalone output, not apps/web/
-CMD ["node", "server.js"]
+# server.js is located inside apps/web/ relative to the standalone output
+CMD ["node", "apps/web/server.js"]

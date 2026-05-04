@@ -696,16 +696,9 @@ export function SidebarDocumentList({
           onPointerDown={(e) => {
             if (isTemp || e.button !== 0) return;
             const target = e.target as HTMLElement;
-            // Let button clicks (dropdown trigger) and menu interactions pass through.
-            if (
-              target.closest("button") ||
-              target.closest('[role="menuitem"]') ||
-              target.closest('[role="menu"]') ||
-              target.closest("[data-radix-popper-content-wrapper]")
-            ) {
-              return;
-            }
-            // Do NOT capture pointer here, otherwise Link clicks are swallowed and navigation fails.
+            // Let button clicks (dropdown trigger) pass through.
+            if (target.closest("button")) return;
+            // Removed setPointerCapture to allow smooth Link interaction and native focus.
             beginGripDrag(e.pointerId, doc.id, listKey, e.clientX, e.clientY);
           }}
           className={`group list-none rounded-md transition-all duration-150 select-none ${
@@ -744,7 +737,7 @@ export function SidebarDocumentList({
                 <DropdownMenuTrigger asChild>
                   <button
                     aria-label="Document actions"
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[hsl(var(--sb-bg-hover))] rounded-md transition-all text-[hsl(var(--sb-text-faint))] hover:text-white focus:opacity-100 shrink-0"
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[hsl(var(--sb-bg-hover))] rounded-md transition-all text-[hsl(var(--sb-text-faint))] hover:text-white focus:opacity-100 shrink-0 mr-1.5"
                   >
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
@@ -753,6 +746,7 @@ export function SidebarDocumentList({
                   align="end"
                   className={DOC_MENU_SURFACE}
                   onCloseAutoFocus={(e) => e.preventDefault()}
+                  onPointerDown={(e) => e.stopPropagation()}
                 >
                   <div className="px-2 py-1.5 text-[11px] font-bold text-white/40 uppercase tracking-widest">
                     DOCUMENT
