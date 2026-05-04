@@ -18,7 +18,13 @@ export class GeminiAIService implements AIService {
 
   public constructor(documentManager: DocumentManager) {
     this.documentManager = documentManager;
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error(
+        "[GeminiAIService] Error: GEMINI_API_KEY is not set in environment",
+      );
+    }
+    this.genAI = new GoogleGenerativeAI(apiKey ?? "");
   }
 
   public cancelWriting(requestId: string): void {
@@ -55,6 +61,7 @@ export class GeminiAIService implements AIService {
       const currentContent = entry.doc.getXmlFragment("content").toString();
 
       // 3. Initialize Gemini model
+      // gemini-2.5-flash is the primary model for this environment.
       const model = this.genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
         systemInstruction: [
@@ -72,22 +79,68 @@ export class GeminiAIService implements AIService {
       // We do NOT manipulate the Y.Doc here — that would produce unformatted
       // plain text (e.g. "## Heading" as literal characters).
       const prompt = `Current document context:\n\n${currentContent}\n\nTask: ${request.prompt}`;
-      const result = await model.generateContentStream(prompt);
+      console.log(
+        `[AI] Starting stream for request ${request.requestId}, prompt length: ${request.prompt.length}, context length: ${currentContent.length}`,
+      );
+
+      const result = await model.generateContentStream(prompt, {
+        signal: controller.signal,
+      });
 
       const emptyUpdate = new Uint8Array(0);
 
-      for await (const responseChunk of result.stream) {
-        if (controller.signal.aborted) break;
+      try {
+        for await (const responseChunk of result.stream) {
+          if (controller.signal.aborted) {
+            console.log(`[AI] Stream aborted for request ${request.requestId}`);
+            break;
+          }
 
-        const token = responseChunk.text();
-        if (!token) continue;
+          let token = "";
+          try {
+            token = responseChunk.text();
+          } catch (textError) {
+            console.warn(
+              `[AI] Failed to get text from chunk:`,
+              JSON.stringify(responseChunk, null, 2),
+            );
+            // If we can't get text, maybe it's a safety block or other issue
+            if (
+              responseChunk.candidates &&
+              responseChunk.candidates[0]?.finishReason
+            ) {
+              console.warn(
+                `[AI] Finish reason: ${responseChunk.candidates[0].finishReason}`,
+              );
+              if (responseChunk.candidates[0].finishReason === "SAFETY") {
+                throw new Error("AI output was blocked by safety filters");
+              }
+            }
+            continue;
+          }
 
-        yield {
-          requestId: request.requestId,
-          text: token,
-          update: emptyUpdate,
-          isDone: false,
-        };
+          if (!token) continue;
+
+          yield {
+            requestId: request.requestId,
+            text: token,
+            update: emptyUpdate,
+            isDone: false,
+          };
+        }
+      } catch (streamError: any) {
+        // Handle "Failed to parse stream" and other SDK errors
+        if (streamError?.message?.includes("Failed to parse stream")) {
+          console.error(
+            `[AI] Stream parsing failed. This can happen if the API returns an error without a body or is overloaded.`,
+          );
+          throw new Error("AI service temporarily unavailable (stream error)");
+        }
+        console.error(
+          `[AI] Stream iteration error for request ${request.requestId}:`,
+          streamError,
+        );
+        throw streamError;
       }
 
       yield {

@@ -322,6 +322,10 @@ function handleConnection(ws: WebSocket, ctx: ConnectionContext): void {
                   } else if (e.message.includes("API key")) {
                     errorMsg = "Invalid or missing GEMINI_API_KEY";
                     code = "INVALID_UPDATE";
+                  } else if (e.message.includes("safety filters")) {
+                    code = "INVALID_UPDATE";
+                  } else if (e.message.includes("stream error")) {
+                    code = "AI_UNAVAILABLE";
                   }
                 }
 
