@@ -5,21 +5,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ROOT_LIST_KEY,
   appendMovedDocToListOrder,
-  documentMatchesListKey,
   folderPathForListKey,
+  getSavedOrderRaw,
   persistListAfterRemovingDoc,
-  reorderDocWithinList,
+  reorderItemWithinList,
 } from "./sidebarOrderStorage";
 
 // ── Public types ───────────────────────────────────────────────────────────
 
 export type SidebarDragHit =
-  | { type: "nest"; folderPath: string; targetDocId?: string }
+  | {
+      type: "nest";
+      folderPath: string;
+      targetDocId?: string;
+      targetFolderPath?: string;
+    }
   | { type: "reorder"; listKey: string; insertIndex: number };
 
 /** What the component renders from: ghost position + active session metadata. */
 export type SidebarDragSession = {
-  docId: string;
+  docId?: string;
+  folderPath?: string;
   currentX: number;
   currentY: number;
 };
@@ -28,7 +34,8 @@ export type SidebarDragSession = {
 
 type ActiveDrag = {
   pointerId: number;
-  docId: string;
+  docId?: string;
+  folderPath?: string;
   srcListKey: string;
   startX: number;
   startY: number;
@@ -42,25 +49,31 @@ type ActiveDrag = {
 function insertIndexInListUl(
   listEl: HTMLElement,
   clientY: number,
-  excludeDocId: string,
+  excludeDocId?: string,
+  excludeFolderPath?: string,
 ): number {
-  const rows = [...listEl.querySelectorAll("[data-sb-doc-row]")].filter(
-    (el) =>
-      el.getAttribute("data-doc-id") &&
-      el.getAttribute("data-doc-id") !== excludeDocId,
-  ) as HTMLElement[];
+  const items = [
+    ...listEl.querySelectorAll("[data-sb-doc-row], [data-sb-folder-header]"),
+  ].filter((el) => {
+    const id = el.getAttribute("data-doc-id");
+    const path = el.getAttribute("data-sb-folder-path");
+    if (id && id === excludeDocId) return false;
+    if (path && path === excludeFolderPath) return false;
+    return true;
+  }) as HTMLElement[];
 
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i]!.getBoundingClientRect();
+  for (let i = 0; i < items.length; i++) {
+    const r = items[i]!.getBoundingClientRect();
     if (clientY < r.top + r.height / 2) return i;
   }
-  return rows.length;
+  return items.length;
 }
 
 export function computeSidebarDragHit(
   clientX: number,
   clientY: number,
-  excludeDocId: string,
+  excludeDocId?: string,
+  excludeFolderPath?: string,
 ): SidebarDragHit | null {
   const stack = document.elementsFromPoint(clientX, clientY);
 
@@ -69,7 +82,19 @@ export function computeSidebarDragHit(
     const header = el.closest("[data-sb-folder-header]");
     if (header) {
       const fp = header.getAttribute("data-sb-folder-path") ?? "";
-      return { type: "nest", folderPath: fp };
+      // Cannot nest a folder into itself or its own subfolders
+      if (
+        excludeFolderPath &&
+        (fp === excludeFolderPath || fp.startsWith(excludeFolderPath + "/"))
+      )
+        continue;
+
+      const r = header.getBoundingClientRect();
+      const relY = (clientY - r.top) / r.height;
+      // If we are at the very top/bottom edge of a folder header, it might be a reorder hit in the parent list
+      if (relY < 0.1 || relY > 0.9) continue;
+
+      return { type: "nest", folderPath: fp, targetFolderPath: fp };
     }
   }
 
@@ -89,6 +114,14 @@ export function computeSidebarDragHit(
       const folder = row.getAttribute("data-doc-folder") ?? "";
       const nestPath =
         (folder.trim() ? `${folder.trim()}/` : "") + title.trim();
+
+      if (
+        excludeFolderPath &&
+        (nestPath === excludeFolderPath ||
+          nestPath.startsWith(excludeFolderPath + "/"))
+      )
+        continue;
+
       return { type: "nest", folderPath: nestPath, targetDocId: targetId };
     }
 
@@ -99,7 +132,12 @@ export function computeSidebarDragHit(
       return {
         type: "reorder",
         listKey,
-        insertIndex: insertIndexInListUl(list, clientY, excludeDocId),
+        insertIndex: insertIndexInListUl(
+          list,
+          clientY,
+          excludeDocId,
+          excludeFolderPath,
+        ),
       };
     }
   }
@@ -112,7 +150,12 @@ export function computeSidebarDragHit(
       return {
         type: "reorder",
         listKey,
-        insertIndex: insertIndexInListUl(list, clientY, excludeDocId),
+        insertIndex: insertIndexInListUl(
+          list,
+          clientY,
+          excludeDocId,
+          excludeFolderPath,
+        ),
       };
     }
   }
@@ -144,8 +187,11 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
   const [ghostPos, setGhostPos] = useState<{ x: number; y: number } | null>(
     null,
   );
-  // Which doc is being dragged (for fading the source row)
+  // Which doc or folder is being dragged (for fading the source row)
   const [activeDragDocId, setActiveDragDocId] = useState<string | null>(null);
+  const [activeDragFolderPath, setActiveDragFolderPath] = useState<
+    string | null
+  >(null);
   // Hit under cursor (for insert rail + nest highlight)
   const [hit, setHit] = useState<SidebarDragHit | null>(null);
   // True once the pointer has moved ≥ MOVE_PX
@@ -189,7 +235,14 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
 
       // Update ghost position (state update, but isolated — doesn't affect listeners)
       setGhostPos({ x: e.clientX, y: e.clientY });
-      setHit(computeSidebarDragHit(e.clientX, e.clientY, d.docId));
+      setHit(
+        computeSidebarDragHit(
+          e.clientX,
+          e.clientY,
+          d.docId,
+          d.folderPath || undefined,
+        ),
+      );
     };
 
     const onUp = async (e: PointerEvent) => {
@@ -208,11 +261,17 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
         blockClickRef.current = null;
       }
 
-      const hi = computeSidebarDragHit(e.clientX, e.clientY, snap.docId);
+      const hi = computeSidebarDragHit(
+        e.clientX,
+        e.clientY,
+        snap.docId,
+        snap.folderPath || undefined,
+      );
 
       // Reset all render state synchronously
       setGhostPos(null);
       setActiveDragDocId(null);
+      setActiveDragFolderPath(null);
       setHit(null);
       setIsDragging(false);
 
@@ -228,95 +287,165 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
       if (!workspaceId) return;
 
       const allDocs = getDocuments();
-      const doc = allDocs.find((d) => d.id === snap.docId);
-      if (!doc) return;
 
-      const srcKey = snap.srcListKey;
+      if (snap.docId) {
+        const doc = allDocs.find((d) => d.id === snap.docId);
+        if (!doc) return;
 
-      // ── Nest ──────────────────────────────────────────────────────────────
-      if (hi.type === "nest") {
-        const nestPath = hi.folderPath.trim();
-        if (
-          snap.docId === hi.targetDocId ||
-          (doc.folderPath ?? "").trim() === nestPath
-        )
-          return;
+        const srcKey = snap.srcListKey;
 
-        // Move the dragged doc into the new folder.
-        patchDocumentInCache(snap.docId, { folderPath: nestPath });
-        const ok = await updateDocument(snap.docId, { folderPath: nestPath });
-        if (!ok) return;
-
-        const destListKey = nestPath || ROOT_LIST_KEY;
-        if (srcKey !== destListKey) {
-          persistListAfterRemovingDoc(workspaceId, srcKey, allDocs, snap.docId);
-        }
-
-        // Also move the target doc (B) into the same folder so both become
-        // siblings — prevents B orphaning at root next to its own named folder.
-        if (hi.targetDocId) {
-          const targetDoc = allDocs.find((d) => d.id === hi.targetDocId);
+        // ── Nest ──────────────────────────────────────────────────────────────
+        if (hi.type === "nest") {
+          const nestPath = hi.folderPath.trim();
           if (
-            targetDoc &&
-            (targetDoc.folderPath ?? "").trim() !== nestPath &&
-            hi.targetDocId !== snap.docId
-          ) {
-            const targetSrcKey =
-              (targetDoc.folderPath ?? "").trim() || ROOT_LIST_KEY;
-            patchDocumentInCache(hi.targetDocId, { folderPath: nestPath });
-            void updateDocument(hi.targetDocId, { folderPath: nestPath });
-            if (targetSrcKey !== destListKey) {
-              persistListAfterRemovingDoc(
-                workspaceId,
-                targetSrcKey,
-                allDocs,
-                hi.targetDocId,
-              );
+            snap.docId === hi.targetDocId ||
+            (doc.folderPath ?? "").trim() === nestPath
+          )
+            return;
+
+          // Move the dragged doc into the new folder.
+          patchDocumentInCache(snap.docId, { folderPath: nestPath });
+          const ok = await updateDocument(snap.docId, { folderPath: nestPath });
+          if (!ok) return;
+
+          const destListKey = nestPath || ROOT_LIST_KEY;
+          if (srcKey !== destListKey) {
+            persistListAfterRemovingDoc(
+              workspaceId,
+              srcKey,
+              allDocs,
+              snap.docId,
+            );
+          }
+
+          // Also move the target doc (B) into the same folder so both become
+          // siblings — prevents B orphaning at root next to its own named folder.
+          if (hi.targetDocId) {
+            const targetDoc = allDocs.find((d) => d.id === hi.targetDocId);
+            if (
+              targetDoc &&
+              (targetDoc.folderPath ?? "").trim() !== nestPath &&
+              hi.targetDocId !== snap.docId
+            ) {
+              const targetSrcKey =
+                (targetDoc.folderPath ?? "").trim() || ROOT_LIST_KEY;
+              patchDocumentInCache(hi.targetDocId, { folderPath: nestPath });
+              void updateDocument(hi.targetDocId, { folderPath: nestPath });
+              if (targetSrcKey !== destListKey) {
+                persistListAfterRemovingDoc(
+                  workspaceId,
+                  targetSrcKey,
+                  allDocs,
+                  hi.targetDocId,
+                );
+              }
             }
           }
+
+          appendMovedDocToListOrder(
+            workspaceId,
+            destListKey,
+            bumpFolder(allDocs, snap.docId, nestPath),
+            snap.docId,
+          );
+          return;
         }
 
-        appendMovedDocToListOrder(
-          workspaceId,
-          destListKey,
-          bumpFolder(allDocs, snap.docId, nestPath),
-          snap.docId,
-        );
-        return;
-      }
+        // ── Reorder ───────────────────────────────────────────────────────────
+        const rawKey = hi.listKey;
+        const destKey =
+          rawKey === "" || rawKey === "__root__" || rawKey === ROOT_LIST_KEY
+            ? ROOT_LIST_KEY
+            : rawKey;
+        const insertIdx = Math.max(0, hi.insertIndex);
+        const destPath = folderPathForListKey(destKey);
 
-      // ── Reorder ───────────────────────────────────────────────────────────
-      const rawKey = hi.listKey;
-      const destKey =
-        rawKey === "" || rawKey === "__root__" || rawKey === ROOT_LIST_KEY
-          ? ROOT_LIST_KEY
-          : rawKey;
-      const insertIdx = Math.max(0, hi.insertIndex);
-      const destPath = folderPathForListKey(destKey);
+        if (destKey !== srcKey) {
+          patchDocumentInCache(snap.docId, { folderPath: destPath });
+          const ok = await updateDocument(snap.docId, { folderPath: destPath });
+          if (!ok) return;
+          persistListAfterRemovingDoc(workspaceId, srcKey, allDocs, snap.docId);
 
-      if (destKey !== srcKey) {
-        patchDocumentInCache(snap.docId, { folderPath: destPath });
-        const ok = await updateDocument(snap.docId, { folderPath: destPath });
-        if (!ok) return;
-        const nextAll = bumpFolder(allDocs, snap.docId, destPath);
-        persistListAfterRemovingDoc(workspaceId, srcKey, allDocs, snap.docId);
-        reorderDocWithinList(
+          const currentIdentities = getSavedOrderRaw(workspaceId, destKey);
+          reorderItemWithinList(
+            workspaceId,
+            destKey,
+            currentIdentities,
+            `doc:${snap.docId}`,
+            insertIdx,
+          );
+          return;
+        }
+
+        const currentIdentities = getSavedOrderRaw(workspaceId, destKey);
+        reorderItemWithinList(
           workspaceId,
           destKey,
-          nextAll.filter((d) => documentMatchesListKey(d, destKey)),
-          snap.docId,
+          currentIdentities,
+          `doc:${snap.docId}`,
           insertIdx,
         );
-        return;
-      }
+      } else if (snap.folderPath) {
+        // Folder dragging logic
+        const srcPath = snap.folderPath;
 
-      reorderDocWithinList(
-        workspaceId,
-        destKey,
-        allDocs.filter((d) => documentMatchesListKey(d, destKey)),
-        snap.docId,
-        insertIdx,
-      );
+        if (hi.type === "nest") {
+          const destPath = hi.folderPath.trim();
+          if (destPath === srcPath || destPath.startsWith(srcPath + "/"))
+            return;
+
+          const parts = srcPath.split("/").filter(Boolean);
+          const folderName = parts[parts.length - 1]!;
+          const newPathBase = destPath
+            ? `${destPath}/${folderName}`
+            : folderName;
+
+          const toUpdate = allDocs.filter((d) => {
+            const fp = (d.folderPath ?? "").trim();
+            return fp === srcPath || fp.startsWith(srcPath + "/");
+          });
+
+          for (const d of toUpdate) {
+            const suffix = d.folderPath!.substring(srcPath.length);
+            const targetFp = newPathBase + suffix;
+            patchDocumentInCache(d.id, { folderPath: targetFp });
+            void updateDocument(d.id, { folderPath: targetFp });
+          }
+        } else if (hi.type === "reorder") {
+          const destListKey = hi.listKey;
+          const destPath = folderPathForListKey(destListKey);
+          if (destPath === srcPath || destPath.startsWith(srcPath + "/"))
+            return;
+
+          const parts = srcPath.split("/").filter(Boolean);
+          const folderName = parts[parts.length - 1]!;
+          const newPathBase = destPath
+            ? `${destPath}/${folderName}`
+            : folderName;
+
+          const toUpdate = allDocs.filter((d) => {
+            const fp = (d.folderPath ?? "").trim();
+            return fp === srcPath || fp.startsWith(srcPath + "/");
+          });
+
+          for (const d of toUpdate) {
+            const suffix = d.folderPath!.substring(srcPath.length);
+            const targetFp = newPathBase + suffix;
+            patchDocumentInCache(d.id, { folderPath: targetFp });
+            void updateDocument(d.id, { folderPath: targetFp });
+          }
+
+          // Persist the new order in the destination list
+          const currentIdentities = getSavedOrderRaw(workspaceId, destListKey);
+          reorderItemWithinList(
+            workspaceId,
+            destListKey,
+            currentIdentities,
+            `folder:${folderName}`,
+            hi.insertIndex,
+          );
+        }
+      }
     };
 
     window.addEventListener("pointermove", onMove);
@@ -361,6 +490,40 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
 
       // Mark the source row immediately so it can dim/fade
       setActiveDragDocId(docId);
+      setActiveDragFolderPath(null);
+      setGhostPos({ x: clientX, y: clientY });
+      setHit(null);
+      setIsDragging(false);
+    },
+    [],
+  );
+
+  const beginFolderDrag = useCallback(
+    (
+      pointerId: number,
+      folderPath: string,
+      srcListKey: string,
+      clientX: number,
+      clientY: number,
+    ) => {
+      // Cancel any existing drag first
+      dragRef.current = null;
+
+      const d: ActiveDrag = {
+        pointerId,
+        folderPath,
+        srcListKey,
+        startX: clientX,
+        startY: clientY,
+        currentX: clientX,
+        currentY: clientY,
+        moved: false,
+      };
+      dragRef.current = d;
+
+      // Mark the source row immediately so it can dim/fade
+      setActiveDragFolderPath(folderPath);
+      setActiveDragDocId(null);
       setGhostPos({ x: clientX, y: clientY });
       setHit(null);
       setIsDragging(false);
@@ -370,11 +533,16 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
 
   // Build the `session` shape that SidebarDocumentList reads for the ghost
   const session: SidebarDragSession | null =
-    activeDragDocId && ghostPos
-      ? { docId: activeDragDocId, currentX: ghostPos.x, currentY: ghostPos.y }
+    (activeDragDocId || activeDragFolderPath) && ghostPos
+      ? {
+          docId: activeDragDocId || undefined,
+          folderPath: activeDragFolderPath || undefined,
+          currentX: ghostPos.x,
+          currentY: ghostPos.y,
+        }
       : null;
 
-  return { session, hit, beginGripDrag, isDragging } as const;
+  return { session, hit, beginGripDrag, beginFolderDrag, isDragging } as const;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

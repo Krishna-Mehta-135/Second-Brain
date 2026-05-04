@@ -128,34 +128,69 @@ export function persistSidebarOrder(
   }
 }
 
-export function reorderDocWithinList(
+export function persistOrderForItems(
   workspaceId: string | null | undefined,
   listKey: string,
-  docsAtLeaf: Document[],
-  draggedId: string,
+  orderedIdentities: string[],
+) {
+  persistSidebarOrder(workspaceId, listKey, orderedIdentities);
+}
+
+export function reorderItemWithinList(
+  workspaceId: string | null | undefined,
+  listKey: string,
+  currentIdentities: string[],
+  draggedIdentity: string,
   insertIndex: number,
 ) {
   if (!workspaceId) return;
 
-  const ordered = orderDocumentsForSidebar(workspaceId, listKey, docsAtLeaf)
-    .map((d) => d.id)
-    .filter((id) => id !== draggedId);
+  const ordered = currentIdentities.filter((id) => id !== draggedIdentity);
   const n = ordered.length;
   const idx = Math.max(0, Math.min(insertIndex, n));
-  ordered.splice(idx, 0, draggedId);
+  ordered.splice(idx, 0, draggedIdentity);
   persistSidebarOrder(workspaceId, listKey, ordered);
 }
 
-export function prependDocToListOrder(
+/** Merge persisted order with current items — unknown IDs dropped, missing ones appended. */
+export function orderItemsForSidebar(
   workspaceId: string | null | undefined,
   listKey: string,
-  docsAtLeaf: Document[],
-  docId: string,
-) {
-  if (!workspaceId) return;
-  const ordered = orderDocumentsForSidebar(workspaceId, listKey, docsAtLeaf)
-    .map((d) => d.id)
-    .filter((id) => id !== docId);
-  ordered.unshift(docId);
-  persistSidebarOrder(workspaceId, listKey, ordered);
+  docIds: string[],
+  folderNames: string[],
+): string[] {
+  if (!workspaceId) {
+    // Fallback: folders first (alpha), then docs (newest first - though here we only have IDs)
+    return [
+      ...folderNames.sort().map((n) => `folder:${n}`),
+      ...docIds.map((id) => `doc:${id}`),
+    ];
+  }
+
+  const saved = getSavedOrderRaw(workspaceId, listKey);
+  const out: string[] = [];
+  const used = new Set<string>();
+
+  const docSet = new Set(docIds.map((id) => `doc:${id}`));
+  const folderSet = new Set(folderNames.map((n) => `folder:${n}`));
+
+  for (const ident of saved) {
+    if (docSet.has(ident) || folderSet.has(ident)) {
+      out.push(ident);
+      used.add(ident);
+    }
+  }
+
+  // Append new folders
+  const restFolders = folderNames
+    .filter((n) => !used.has(`folder:${n}`))
+    .sort()
+    .map((n) => `folder:${n}`);
+
+  // Append new docs
+  const restDocs = docIds
+    .filter((id) => !used.has(`doc:${id}`))
+    .map((id) => `doc:${id}`);
+
+  return [...out, ...restFolders, ...restDocs];
 }

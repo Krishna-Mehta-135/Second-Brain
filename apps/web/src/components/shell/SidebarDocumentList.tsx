@@ -33,12 +33,13 @@ import {
   FolderInput,
   Plus,
   Star,
+  ArrowUp,
 } from "lucide-react";
 import { useStarredDocs } from "@/lib/documents/useStarredDocs";
 import { useWorkspace } from "@/lib/workspaces/WorkspaceProvider";
 import {
   ROOT_LIST_KEY,
-  orderDocumentsForSidebar,
+  orderItemsForSidebar,
 } from "@/lib/documents/sidebarOrderStorage";
 import { useSidebarObsidianDrag } from "@/lib/documents/useSidebarObsidianDrag";
 
@@ -97,15 +98,6 @@ function insertDoc(root: TreeNode, doc: Document) {
     cur = cur.children.get(segment)!;
   }
   cur.docs.push(doc);
-}
-
-/** Returns the most recent updatedAt timestamp for any doc inside a TreeNode (recursively). */
-function maxUpdatedAt(node: TreeNode): number {
-  let t = 0;
-  for (const d of node.docs) t = Math.max(t, d.updatedAt ?? 0);
-  for (const child of node.children.values())
-    t = Math.max(t, maxUpdatedAt(child));
-  return t;
 }
 
 function safeDocTitle(doc: Document) {
@@ -284,22 +276,36 @@ function FolderTreeBranch({
   onNewNoteInFolder,
   onNewSubfolder,
   nestHoverPath,
+  beginFolderDrag,
+  isDragging,
+  activeDragFolderPath,
 }: {
   segments: string[];
   node: TreeNode;
   renderOrderedListInFolder: (
     folderListKey: string,
     docs: Document[],
+    children: Map<string, TreeNode>,
   ) => ReactNode;
   onNewNoteInFolder: (folderPath: string) => void;
   onNewSubfolder: (parentPath: string) => void;
   nestHoverPath: string | undefined;
+  beginFolderDrag: (
+    pointerId: number,
+    folderPath: string,
+    srcListKey: string,
+    x: number,
+    y: number,
+  ) => void;
+  isDragging: boolean;
+  activeDragFolderPath: string | undefined;
 }) {
   const label = segments[segments.length - 1] ?? "";
   const pathKey = segments.join("/");
   const [open, setOpen] = useState(segments.length <= 2);
-  const { documents, deleteDocument } = useDocuments();
+  const { documents, deleteDocument, updateDocument } = useDocuments();
   const nestTarget = nestHoverPath === pathKey;
+  const isThisFolderDragging = activeDragFolderPath === pathKey;
 
   const childFolders = [...node.children.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
@@ -310,16 +316,35 @@ function FolderTreeBranch({
       <div
         data-sb-folder-header
         data-sb-folder-path={pathKey}
-        className={`flex items-center gap-0.5 rounded-md group/frow pr-0.5 transition-all duration-150 ${
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          const target = e.target as HTMLElement;
+          // Only exclude the specific actions button, allow dragging on the main header/label
+          if (target.closest('button[aria-label="Folder actions"]')) return;
+          e.preventDefault();
+          const parentKey = segments.slice(0, -1).join("/") || ROOT_LIST_KEY;
+          beginFolderDrag(
+            e.pointerId,
+            pathKey,
+            parentKey,
+            e.clientX,
+            e.clientY,
+          );
+        }}
+        className={`flex items-center gap-0.5 rounded-md group/frow pr-0.5 transition-all duration-150 select-none touch-none ${
           nestTarget
             ? "bg-[hsl(var(--sb-accent))]/18 ring-1 ring-[hsl(var(--sb-accent))]/55 shadow-[inset_0_0_0_1px_hsl(var(--sb-accent)/0.2)]"
-            : "hover:bg-[hsl(var(--sb-bg-hover))]/50"
+            : isThisFolderDragging && isDragging
+              ? "opacity-0"
+              : isThisFolderDragging
+                ? "opacity-30"
+                : "hover:bg-[hsl(var(--sb-bg-hover))]/50"
         }`}
       >
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex flex-1 min-w-0 items-center gap-1.5 text-[11px] px-2 py-1 rounded text-[hsl(var(--sb-text-muted))] hover:text-white text-left transition-colors"
+          className="flex flex-1 min-w-0 items-center gap-1.5 text-[14px] px-2 py-1 rounded text-[hsl(var(--sb-text-muted))] hover:text-white text-left transition-colors"
         >
           {open ? (
             <ChevronDown size={13} className="shrink-0 opacity-70" />
@@ -354,6 +379,53 @@ function FolderTreeBranch({
               <Folder size={12} className="text-[hsl(var(--sb-accent))]/90" />
               New subfolder (Untitled)
             </DropdownMenuItem>
+            {pathKey.includes("/") && (
+              <DropdownMenuItem
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/10 cursor-pointer focus:bg-white/10 text-xs"
+                onSelect={() => {
+                  const parts = pathKey.split("/").filter(Boolean);
+                  if (parts.length < 2) return;
+                  const folderName = parts[parts.length - 1];
+                  const parentOfParent = parts.slice(0, -2).join("/");
+                  const newPath = parentOfParent
+                    ? `${parentOfParent}/${folderName}`
+                    : folderName;
+
+                  const toUpdate = documents.filter((d: Document) => {
+                    const fp = (d.folderPath ?? "").trim();
+                    return fp === pathKey || fp.startsWith(pathKey + "/");
+                  });
+
+                  toUpdate.forEach((d: Document) => {
+                    const suffix = d.folderPath!.substring(pathKey.length);
+                    void updateDocument(d.id, { folderPath: newPath + suffix });
+                  });
+                }}
+              >
+                <ArrowUp size={12} className="text-white/55" />
+                Move folder up
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/10 cursor-pointer focus:bg-white/10 text-xs"
+              onSelect={() => {
+                const newPath = window.prompt("Enter new folder path", pathKey);
+                if (newPath && newPath.trim() && newPath.trim() !== pathKey) {
+                  const target = newPath.trim();
+                  const toUpdate = documents.filter((d: Document) => {
+                    const fp = (d.folderPath ?? "").trim();
+                    return fp === pathKey || fp.startsWith(pathKey + "/");
+                  });
+                  toUpdate.forEach((d: Document) => {
+                    const suffix = d.folderPath!.substring(pathKey.length);
+                    void updateDocument(d.id, { folderPath: target + suffix });
+                  });
+                }
+              }}
+            >
+              <FolderInput size={12} className="text-white/55" />
+              Move/Rename folder...
+            </DropdownMenuItem>
             <DropdownMenuSeparator className="my-1 bg-white/10" />
             <DropdownMenuItem
               className="flex items-center gap-2 px-2 py-1.5 rounded-md text-red-400 hover:bg-red-500/10 hover:text-red-300 cursor-pointer focus:bg-red-500/10 focus:text-red-300 text-xs"
@@ -384,7 +456,7 @@ function FolderTreeBranch({
               data-sb-doc-list={pathKey}
               className="space-y-0.5 list-none p-0 m-0"
             >
-              {renderOrderedListInFolder(pathKey, node.docs)}
+              {renderOrderedListInFolder(pathKey, node.docs, node.children)}
             </ul>
           </LayoutGroup>
           {childFolders.map(([nm, ch]) => (
@@ -396,6 +468,9 @@ function FolderTreeBranch({
               onNewNoteInFolder={onNewNoteInFolder}
               onNewSubfolder={onNewSubfolder}
               nestHoverPath={nestHoverPath}
+              beginFolderDrag={beginFolderDrag}
+              isDragging={isDragging}
+              activeDragFolderPath={activeDragFolderPath}
             />
           ))}
         </div>
@@ -456,14 +531,16 @@ export function SidebarDocumentList({
 
   filteredRef.current = filteredDocuments;
 
-  const { session, hit, beginGripDrag, isDragging } = useSidebarObsidianDrag({
-    workspaceId: activeWorkspaceId,
-    getDocuments: () => filteredRef.current,
-    updateDocument,
-    patchDocumentInCache,
-  });
+  const { session, hit, beginGripDrag, beginFolderDrag, isDragging } =
+    useSidebarObsidianDrag({
+      workspaceId: activeWorkspaceId,
+      getDocuments: () => filteredRef.current,
+      updateDocument,
+      patchDocumentInCache,
+    });
 
   const nestHoverPath = hit?.type === "nest" ? hit.folderPath : undefined;
+  const activeDragFolderPath = session?.folderPath;
 
   const wsId = activeWorkspaceId ?? null;
 
@@ -627,6 +704,23 @@ export function SidebarDocumentList({
                       });
                     }}
                   />
+                  {(doc.folderPath ?? "").trim() ? (
+                    <DropdownMenuItem
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/10 cursor-pointer focus:bg-white/10"
+                      onSelect={() => {
+                        const parts = (doc.folderPath ?? "")
+                          .split("/")
+                          .filter(Boolean);
+                        const parent = parts.slice(0, -1).join("/");
+                        void updateDocument(doc.id, { folderPath: parent });
+                      }}
+                    >
+                      <ArrowUp className="h-3.5 w-3.5 text-white/60" />
+                      <span className="text-xs font-medium">
+                        Move up to parent
+                      </span>
+                    </DropdownMenuItem>
+                  ) : null}
                   <DropdownMenuItem
                     className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/10 cursor-pointer focus:bg-white/10"
                     onSelect={() => toggleStar(doc.id)}
@@ -671,35 +765,81 @@ export function SidebarDocumentList({
   );
 
   const renderOrderedListInFolder = useCallback(
-    (listKey: string, docsAtLeaf: Document[]) => {
-      const ordered = orderDocumentsForSidebar(wsId, listKey, docsAtLeaf);
+    (
+      listKey: string,
+      docsAtLeaf: Document[],
+      childrenAtLeaf: Map<string, TreeNode>,
+    ) => {
+      const folderNames = [...childrenAtLeaf.keys()];
+      const docIds = docsAtLeaf.map((d) => d.id);
+
+      const orderedIdentities = orderItemsForSidebar(
+        wsId,
+        listKey,
+        docIds,
+        folderNames,
+      );
+
       const reorderHit = hit?.type === "reorder" ? hit : null;
       const railForList = Boolean(session) && reorderHit?.listKey === listKey;
       const li = reorderHit?.listKey === listKey ? reorderHit.insertIndex : -1;
 
       const out: ReactNode[] = [];
-      ordered.forEach((doc, idx) => {
+
+      const renderItem = (ident: string, idx: number) => {
         if (railForList && li === idx) {
           out.push(insertionRail(`rail-${listKey}-${idx}`));
         }
-        out.push(renderDocRowMotion(doc, listKey));
-      });
-      if (railForList && li >= ordered.length) {
+
+        if (ident.startsWith("doc:")) {
+          const id = ident.substring(4);
+          const doc = docsAtLeaf.find((d) => d.id === id);
+          if (doc) out.push(renderDocRowMotion(doc, listKey));
+        } else if (ident.startsWith("folder:")) {
+          const name = ident.substring(7);
+          const node = childrenAtLeaf.get(name);
+          if (node) {
+            out.push(
+              <div key={`${listKey}:folder:${name}`} className="mb-2">
+                <FolderTreeBranch
+                  segments={[
+                    ...(listKey === ROOT_LIST_KEY ? [] : listKey.split("/")),
+                    name,
+                  ]}
+                  node={node}
+                  renderOrderedListInFolder={renderOrderedListInFolder}
+                  onNewNoteInFolder={newNoteInFolder}
+                  onNewSubfolder={newSubfolder}
+                  nestHoverPath={nestHoverPath}
+                  beginFolderDrag={beginFolderDrag}
+                  isDragging={isDragging}
+                  activeDragFolderPath={activeDragFolderPath}
+                />
+              </div>,
+            );
+          }
+        }
+      };
+
+      orderedIdentities.forEach((ident, idx) => renderItem(ident, idx));
+
+      if (railForList && li >= orderedIdentities.length) {
         out.push(insertionRail(`rail-${listKey}-end`));
       }
       return <>{out}</>;
     },
-    [session, hit, wsId, renderDocRowMotion],
-  );
-
-  const rootLeaf = useMemo(
-    () => filteredDocuments.filter((d) => !(d.folderPath ?? "").trim()),
-    [filteredDocuments],
-  );
-
-  const draggedDoc = useMemo(
-    () => (session ? documents.find((d) => d.id === session.docId) : null),
-    [session, documents],
+    [
+      session,
+      hit,
+      wsId,
+      renderDocRowMotion,
+      newNoteInFolder,
+      newSubfolder,
+      nestHoverPath,
+      beginFolderDrag,
+      isDragging,
+      activeDragFolderPath,
+    ],
   );
 
   if (isLoading) {
@@ -730,38 +870,11 @@ export function SidebarDocumentList({
     );
   }
 
-  // ── Unified top-level list: root docs and folders interleaved by recency ──
-  // Folders always rendered alphabetically within themselves; at the top level
-  // we merge root-docs and folder-slots into one list sorted newest-first so a
-  // newly-created folder rises to the top instead of being pinned below all docs.
-  type TopSlot =
-    | { kind: "docs"; t: number }
-    | { kind: "folder"; name: string; node: TreeNode; t: number };
-
-  const slots: TopSlot[] = [];
-
-  if (tree.docs.length > 0) {
-    const t = Math.max(...tree.docs.map((d) => d.updatedAt ?? 0));
-    slots.push({ kind: "docs", t });
-  }
-
-  for (const [nm, ch] of tree.children.entries()) {
-    slots.push({ kind: "folder", name: nm, node: ch, t: maxUpdatedAt(ch) });
-  }
-
-  // Sort: newest first. Ties broken alphabetically by display name.
-  slots.sort((a, b) => {
-    if (b.t !== a.t) return b.t - a.t;
-    const nameA = a.kind === "folder" ? a.name : "";
-    const nameB = b.kind === "folder" ? b.name : "";
-    return nameA.localeCompare(nameB);
-  });
-
   return (
     <div className="space-y-0.5 py-2 select-none">
       {/* Drag Ghost */}
       {session &&
-        draggedDoc &&
+        (session.docId || session.folderPath) &&
         typeof document !== "undefined" &&
         createPortal(
           <div
@@ -772,38 +885,28 @@ export function SidebarDocumentList({
               width: 200,
             }}
           >
-            <FileText className="h-3.5 w-3.5 shrink-0 text-white/50" />
-            <span className="truncate">{safeDocTitle(draggedDoc)}</span>
+            {session.docId ? (
+              <FileText className="h-3.5 w-3.5 shrink-0 text-white/50" />
+            ) : (
+              <Folder className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--sb-accent))]/80" />
+            )}
+            <span className="truncate">
+              {session.docId
+                ? safeDocTitle(documents.find((d) => d.id === session.docId)!)
+                : session.folderPath?.split("/").pop()}
+            </span>
           </div>,
           document.body,
         )}
 
-      {slots.map((slot) => {
-        if (slot.kind === "docs") {
-          return (
-            <LayoutGroup key="sb-root-docs" id="sb-root-docs">
-              <ul
-                data-sb-doc-list={ROOT_LIST_KEY}
-                className="space-y-0.5 list-none p-0 m-0"
-              >
-                {renderOrderedListInFolder(ROOT_LIST_KEY, rootLeaf)}
-              </ul>
-            </LayoutGroup>
-          );
-        }
-        return (
-          <div key={slot.name} className="mb-2">
-            <FolderTreeBranch
-              segments={[slot.name]}
-              node={slot.node}
-              renderOrderedListInFolder={renderOrderedListInFolder}
-              onNewNoteInFolder={newNoteInFolder}
-              onNewSubfolder={newSubfolder}
-              nestHoverPath={nestHoverPath}
-            />
-          </div>
-        );
-      })}
+      <LayoutGroup id="sb-root-list">
+        <ul
+          data-sb-doc-list={ROOT_LIST_KEY}
+          className="space-y-0.5 list-none p-0 m-0"
+        >
+          {renderOrderedListInFolder(ROOT_LIST_KEY, tree.docs, tree.children)}
+        </ul>
+      </LayoutGroup>
     </div>
   );
 }
