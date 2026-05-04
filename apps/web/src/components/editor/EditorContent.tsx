@@ -4,7 +4,6 @@ import {
   type Editor,
 } from "@tiptap/react";
 import { useDocument } from "@/lib/sync/useDocument";
-import { EditorSkeleton } from "./EditorSkeleton";
 import { EditorTitle } from "./EditorTitle";
 import { BacklinksPanel } from "./BacklinksPanel";
 import { DocumentTagsBar } from "./DocumentTagsBar";
@@ -15,8 +14,6 @@ interface EditorContentProps {
 
 export function EditorContent({ editor }: EditorContentProps) {
   const { docId } = useDocument();
-
-  if (!editor) return <EditorSkeleton />;
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar relative scroll-smooth">

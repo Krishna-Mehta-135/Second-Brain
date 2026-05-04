@@ -27,10 +27,40 @@ export function persistOrderForDocs(
   listKey: string,
   docsAtLeaf: Document[],
 ) {
-  const ids = orderDocumentsForSidebar(workspaceId, listKey, docsAtLeaf).map(
-    (doc) => doc.id,
-  );
-  persistSidebarOrder(workspaceId, listKey, ids);
+  // Rather than destroying folder order, we should merge the docs order
+  // with the existing folders in getSavedOrderRaw.
+  const orderedDocs = orderDocumentsForSidebar(
+    workspaceId,
+    listKey,
+    docsAtLeaf,
+  ).map((doc) => `doc:${doc.id}`);
+
+  const saved = getSavedOrderRaw(workspaceId, listKey);
+
+  // Combine folders (keeping their relative order) and docs (in their new order)
+  // Actually, we should keep docs in their existing slots if possible, but it's complex.
+  // The old logic just overwrote everything with doc IDs.
+  // Instead, let's just keep the existing identities that are either folders, or in the new docs list.
+
+  const newSet = new Set(orderedDocs);
+  const nextOrder: string[] = [];
+
+  for (const ident of saved) {
+    if (ident.startsWith("folder:")) {
+      nextOrder.push(ident);
+    } else if (newSet.has(ident)) {
+      nextOrder.push(ident);
+      newSet.delete(ident);
+    }
+  }
+  // Append any new docs that weren't in saved order
+  for (const ident of orderedDocs) {
+    if (newSet.has(ident)) {
+      nextOrder.push(ident);
+    }
+  }
+
+  persistSidebarOrder(workspaceId, listKey, nextOrder);
 }
 
 /** After moving `docId` out of `listKey`, persist remaining IDs in prior order. */
@@ -40,10 +70,10 @@ export function persistListAfterRemovingDoc(
   allDocs: Document[],
   removedDocId: string,
 ) {
-  const docs = allDocs.filter(
-    (d) => documentMatchesListKey(d, listKey) && d.id !== removedDocId,
-  );
-  persistOrderForDocs(workspaceId, listKey, docs);
+  if (!workspaceId) return;
+  const saved = getSavedOrderRaw(workspaceId, listKey);
+  const nextOrder = saved.filter((ident) => ident !== `doc:${removedDocId}`);
+  persistSidebarOrder(workspaceId, listKey, nextOrder);
 }
 
 export function appendMovedDocToListOrder(
@@ -53,16 +83,26 @@ export function appendMovedDocToListOrder(
   docId: string,
 ) {
   if (!workspaceId) return;
-  const atDest = allDocs.filter(
-    (d) => documentMatchesListKey(d, destListKey) && d.id !== docId,
-  );
-  const ordered = orderDocumentsForSidebar(
-    workspaceId,
-    destListKey,
-    atDest,
-  ).map((d) => d.id);
-  if (!ordered.includes(docId)) ordered.push(docId);
-  persistSidebarOrder(workspaceId, destListKey, ordered);
+  const saved = getSavedOrderRaw(workspaceId, destListKey);
+  if (!saved.includes(`doc:${docId}`)) {
+    saved.push(`doc:${docId}`);
+    persistSidebarOrder(workspaceId, destListKey, saved);
+  }
+}
+
+export function replaceDocWithFolderInOrder(
+  workspaceId: string | null | undefined,
+  listKey: string,
+  docId: string,
+  folderName: string,
+) {
+  if (!workspaceId) return;
+  const saved = getSavedOrderRaw(workspaceId, listKey);
+  const idx = saved.indexOf(`doc:${docId}`);
+  if (idx !== -1) {
+    saved[idx] = `folder:${folderName}`;
+    persistSidebarOrder(workspaceId, listKey, saved);
+  }
 }
 
 export function getSavedOrderRaw(
@@ -74,7 +114,16 @@ export function getSavedOrderRaw(
     const raw = window.localStorage.getItem(storageKey(workspaceId, listKey));
     if (!raw) return [];
     const arr = JSON.parse(raw) as unknown;
-    return Array.isArray(arr) ? arr.filter((id) => typeof id === "string") : [];
+    if (!Array.isArray(arr)) return [];
+
+    return arr
+      .filter((id) => typeof id === "string")
+      .map((id: string) => {
+        if (!id.startsWith("doc:") && !id.startsWith("folder:")) {
+          return `doc:${id}`;
+        }
+        return id;
+      });
   } catch {
     return [];
   }

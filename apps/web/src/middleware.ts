@@ -27,7 +27,10 @@ export function middleware(request: NextRequest) {
   }
 
   // Auth routes: redirect to /documents if already logged in
-  if ((pathname === "/login" || pathname === "/register") && sessionToken) {
+  if (
+    (pathname === "/" || pathname === "/login" || pathname === "/register") &&
+    sessionToken
+  ) {
     const url = new URL("/documents", request.url);
     if (url.pathname !== pathname) {
       return NextResponse.redirect(url);

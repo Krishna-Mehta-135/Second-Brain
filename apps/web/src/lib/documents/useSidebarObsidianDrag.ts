@@ -9,6 +9,7 @@ import {
   getSavedOrderRaw,
   persistListAfterRemovingDoc,
   reorderItemWithinList,
+  replaceDocWithFolderInOrder,
 } from "./sidebarOrderStorage";
 
 // ── Public types ───────────────────────────────────────────────────────────
@@ -112,8 +113,19 @@ export function computeSidebarDragHit(
       // Middle band → nest
       const title = row.getAttribute("data-doc-title") ?? "";
       const folder = row.getAttribute("data-doc-folder") ?? "";
-      const nestPath =
-        (folder.trim() ? `${folder.trim()}/` : "") + title.trim();
+
+      const trimmedFolder = folder.trim();
+      const trimmedTitle = title.trim();
+      const folderParts = trimmedFolder.split("/").filter(Boolean);
+      const lastFolderSegment = folderParts[folderParts.length - 1];
+
+      let nestPath: string;
+      if (lastFolderSegment === trimmedTitle) {
+        // Already "representative" of its folder, just join it.
+        nestPath = trimmedFolder;
+      } else {
+        nestPath = (trimmedFolder ? `${trimmedFolder}/` : "") + trimmedTitle;
+      }
 
       if (
         excludeFolderPath &&
@@ -165,7 +177,7 @@ export function computeSidebarDragHit(
 
 // ── Hook ───────────────────────────────────────────────────────────────────
 
-const MOVE_PX = 5;
+const MOVE_PX = 3;
 
 interface UseSidebarObsidianDragOpts {
   workspaceId: string | null | undefined;
@@ -214,10 +226,15 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
 
       const dx = e.clientX - d.startX;
       const dy = e.clientY - d.startY;
+      const dist = Math.hypot(dx, dy);
 
-      if (!d.moved && Math.hypot(dx, dy) >= MOVE_PX) {
+      if (!d.moved && dist >= MOVE_PX) {
         d.moved = true;
         setIsDragging(true);
+
+        // Set the active drag states only after the threshold is crossed
+        if (d.docId) setActiveDragDocId(d.docId);
+        if (d.folderPath) setActiveDragFolderPath(d.folderPath);
 
         // Suppress the click that fires after pointerup on the same element.
         const blockClick = (ev: MouseEvent) => {
@@ -231,18 +248,18 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
         });
       }
 
-      if (!d.moved) return; // Don't update ghost until drag threshold crossed
-
-      // Update ghost position (state update, but isolated — doesn't affect listeners)
-      setGhostPos({ x: e.clientX, y: e.clientY });
-      setHit(
-        computeSidebarDragHit(
-          e.clientX,
-          e.clientY,
-          d.docId,
-          d.folderPath || undefined,
-        ),
-      );
+      if (d.moved) {
+        // Update ghost position (state update, but isolated — doesn't affect listeners)
+        setGhostPos({ x: e.clientX, y: e.clientY });
+        setHit(
+          computeSidebarDragHit(
+            e.clientX,
+            e.clientY,
+            d.docId,
+            d.folderPath || undefined,
+          ),
+        );
+      }
     };
 
     const onUp = async (e: PointerEvent) => {
@@ -296,7 +313,56 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
 
         // ── Nest ──────────────────────────────────────────────────────────────
         if (hi.type === "nest") {
-          const nestPath = hi.folderPath.trim();
+          let nestPath = hi.folderPath.trim();
+
+          if (hi.targetDocId) {
+            const targetDoc = allDocs.find((d) => d.id === hi.targetDocId);
+            if (targetDoc && targetDoc.id !== snap.docId) {
+              const targetTrimmedFolder = (targetDoc.folderPath ?? "").trim();
+              const targetTrimmedTitle = (targetDoc.title ?? "").trim();
+
+              const folderParts = targetTrimmedFolder
+                .split("/")
+                .filter(Boolean);
+              const lastSegment =
+                folderParts.length > 0
+                  ? folderParts[folderParts.length - 1]
+                  : "";
+
+              if (lastSegment !== targetTrimmedTitle) {
+                let counter = 0;
+                let newFolderName = "New Folder";
+                let proposedPath = targetTrimmedFolder
+                  ? `${targetTrimmedFolder}/${newFolderName}`
+                  : newFolderName;
+
+                // make sure the proposed folder path doesn't already have docs
+                while (
+                  allDocs.some((d) =>
+                    (d.folderPath ?? "").trim().startsWith(proposedPath),
+                  )
+                ) {
+                  counter++;
+                  newFolderName = `New Folder ${counter}`;
+                  proposedPath = targetTrimmedFolder
+                    ? `${targetTrimmedFolder}/${newFolderName}`
+                    : newFolderName;
+                }
+
+                nestPath = proposedPath;
+
+                // trigger inline rename in UI after a short delay to allow React to render the new folder
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent("knowdex:edit-folder", {
+                      detail: { path: nestPath },
+                    }),
+                  );
+                }, 50);
+              }
+            }
+          }
+
           if (
             snap.docId === hi.targetDocId ||
             (doc.folderPath ?? "").trim() === nestPath
@@ -332,11 +398,12 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
               patchDocumentInCache(hi.targetDocId, { folderPath: nestPath });
               void updateDocument(hi.targetDocId, { folderPath: nestPath });
               if (targetSrcKey !== destListKey) {
-                persistListAfterRemovingDoc(
+                const newFolderName = nestPath.split("/").pop() || "New Folder";
+                replaceDocWithFolderInOrder(
                   workspaceId,
                   targetSrcKey,
-                  allDocs,
                   hi.targetDocId,
+                  newFolderName,
                 );
               }
             }
@@ -410,6 +477,27 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
             const targetFp = newPathBase + suffix;
             patchDocumentInCache(d.id, { folderPath: targetFp });
             void updateDocument(d.id, { folderPath: targetFp });
+          }
+
+          // Also move the target doc (B) into the same folder so both become
+          // siblings — prevents B orphaning at root next to its own named folder.
+          if (hi.targetDocId) {
+            const targetDoc = allDocs.find((d) => d.id === hi.targetDocId);
+            if (targetDoc && (targetDoc.folderPath ?? "").trim() !== destPath) {
+              const targetSrcKey =
+                (targetDoc.folderPath ?? "").trim() || ROOT_LIST_KEY;
+              patchDocumentInCache(hi.targetDocId, { folderPath: destPath });
+              void updateDocument(hi.targetDocId, { folderPath: destPath });
+              const destListKey = destPath || ROOT_LIST_KEY;
+              if (targetSrcKey !== destListKey) {
+                persistListAfterRemovingDoc(
+                  workspaceId,
+                  targetSrcKey,
+                  allDocs,
+                  hi.targetDocId,
+                );
+              }
+            }
           }
         } else if (hi.type === "reorder") {
           const destListKey = hi.listKey;
@@ -488,10 +576,8 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
       };
       dragRef.current = d;
 
-      // Mark the source row immediately so it can dim/fade
-      setActiveDragDocId(docId);
-      setActiveDragFolderPath(null);
-      setGhostPos({ x: clientX, y: clientY });
+      // Do NOT set active drag states here; wait for onMove to cross threshold.
+      setGhostPos(null);
       setHit(null);
       setIsDragging(false);
     },
@@ -521,10 +607,8 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
       };
       dragRef.current = d;
 
-      // Mark the source row immediately so it can dim/fade
-      setActiveDragFolderPath(folderPath);
-      setActiveDragDocId(null);
-      setGhostPos({ x: clientX, y: clientY });
+      // Do NOT set active drag states here; wait for onMove to cross threshold.
+      setGhostPos(null);
       setHit(null);
       setIsDragging(false);
     },

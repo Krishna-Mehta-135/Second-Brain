@@ -135,22 +135,44 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setIsMac(navigator.userAgent.toUpperCase().indexOf("MAC") >= 0);
   }, []);
 
-  useEffect(() => {
-    setCurrentDocTitle(null);
-  }, [currentDocId]);
-
-  // Clear displayed title when switching workspaces so stale titles don't persist
-  useEffect(() => {
-    setCurrentDocTitle(null);
-  }, [activeWorkspaceId]);
-
-  useEffect(() => {
-    if (!currentDocId) return;
+  // Synchronously resolve title if possible to avoid flickering to null/Untitled
+  const resolvedTitle = useMemo(() => {
+    if (!currentDocId) return null;
     const d = documents.find((x) => x.id === currentDocId);
-    if (!d) return;
-    const t = normalizedDocTitle(d.title);
-    setCurrentDocTitle(t ?? "Untitled");
+    return (
+      normalizedDocTitle(d?.title) ??
+      (currentDocId === "new" ? "New Note" : null)
+    );
   }, [currentDocId, documents]);
+
+  useEffect(() => {
+    if (resolvedTitle) {
+      setCurrentDocTitle(resolvedTitle);
+    }
+  }, [resolvedTitle]);
+
+  // Listen for live title updates dispatched from EditorTitle
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<{ docId: string; title: string }>;
+      if (!ev?.detail) return;
+      if (ev.detail.docId === currentDocId) {
+        const t = normalizedDocTitle(ev.detail.title);
+        setCurrentDocTitle(t ?? "Untitled");
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("doc:title:changed", handler as EventListener);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener(
+          "doc:title:changed",
+          handler as EventListener,
+        );
+      }
+    };
+  }, [currentDocId]);
 
   useEffect(() => {
     if (!activeWorkspaceId || !isOwnerOfActive) {
@@ -201,28 +223,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Listen for live title updates dispatched from EditorTitle
+  // Clear displayed title when switching workspaces so stale titles don't persist
   useEffect(() => {
-    const handler = (e: Event) => {
-      const ev = e as CustomEvent<{ docId: string; title: string }>;
-      if (!ev?.detail) return;
-      if (ev.detail.docId === currentDocId) {
-        const t = normalizedDocTitle(ev.detail.title);
-        setCurrentDocTitle(t ?? "Untitled");
-      }
-    };
-    if (typeof window !== "undefined") {
-      window.addEventListener("doc:title:changed", handler as EventListener);
-    }
-    return () => {
-      if (typeof window !== "undefined") {
-        window.removeEventListener(
-          "doc:title:changed",
-          handler as EventListener,
-        );
-      }
-    };
-  }, [currentDocId]);
+    setCurrentDocTitle(null);
+  }, [activeWorkspaceId]);
 
   // Toggle cmd palette with meta+k
   useEffect(() => {
@@ -666,13 +670,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="text-[hsl(var(--sb-text-faint))]"
               />
               <span className="text-white font-medium truncate max-w-[200px]">
-                {currentDocId
-                  ? (normalizedDocTitle(currentDocTitle) ??
-                    normalizedDocTitle(
-                      documents.find((d) => d.id === currentDocId)?.title,
-                    ) ??
-                    "Untitled")
-                  : "Current Note"}
+                {resolvedTitle || "Untitled"}
               </span>
             </div>
           </div>

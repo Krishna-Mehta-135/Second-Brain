@@ -27,6 +27,11 @@ app.use(
 
 app.use(express.json());
 
+// Health check — must be before auth middleware
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 //Routes
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/content", contentRouter);

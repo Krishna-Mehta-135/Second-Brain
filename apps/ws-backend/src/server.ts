@@ -100,7 +100,17 @@ const coalesceManager = new CoalesceBufferManager(
   redisTransport,
 );
 
-const server = createServer();
+const server = createServer((req, res) => {
+  // Lightweight health probe — no auth required
+  if (req.method === "GET" && req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+  // All other HTTP requests are not handled; WS upgrade handles the real traffic
+  res.writeHead(404);
+  res.end();
+});
 const wss = new WebSocketServer({ noServer: true });
 const allConnections = new Map<string, ConnectionContext>();
 const pendingHeartbeatAt = new Map<string, number>();

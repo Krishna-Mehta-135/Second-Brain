@@ -32,29 +32,31 @@ import { useRecentDocs } from "@/lib/documents/useRecentDocs";
 import { WikiLinkAutocomplete } from "./WikiLinkAutocomplete";
 
 export function EditorPage() {
-  const { doc, awareness } = useDocument();
+  const { docId, doc, awareness } = useDocument();
   const auth = useAuth();
 
-  if (auth.status !== "authenticated" || !doc || !awareness) {
+  // Only show skeleton if we don't even have a document yet.
+  // Awareness can initialize a bit later without forcing a full skeleton flicker.
+  if (auth.status !== "authenticated" || !doc) {
     return <EditorSkeleton />;
   }
 
   return (
     <EditorContentWrapper
+      key={docId}
       doc={doc}
-      awareness={awareness}
+      awareness={awareness ?? undefined}
       user={auth.session.user}
     />
   );
 }
-
 function EditorContentWrapper({
   doc,
   awareness,
   user,
 }: {
   doc: Y.Doc;
-  awareness: awarenessProtocol.Awareness;
+  awareness?: awarenessProtocol.Awareness;
   user: User;
 }) {
   const { docId } = useDocument();
@@ -79,13 +81,17 @@ function EditorContentWrapper({
       extensions: [
         (StarterKit as AnyExtension).configure({ history: false }),
         Collaboration.configure({ document: doc, field: "content" }),
-        CollaborationCursor.configure({
-          provider: { awareness, document: doc },
-          user: {
-            name: user.name?.trim() ? user.name : "You",
-            color: getCursorColor(user.id),
-          },
-        }),
+        ...(awareness
+          ? [
+              CollaborationCursor.configure({
+                provider: { awareness, document: doc },
+                user: {
+                  name: user.name?.trim() ? user.name : "You",
+                  color: getCursorColor(user.id),
+                },
+              }),
+            ]
+          : []),
         Placeholder.configure({
           placeholder: ({ node }) =>
             node.type.name === "heading"

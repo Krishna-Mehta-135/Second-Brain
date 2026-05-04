@@ -1,9 +1,33 @@
+# ── Monorepo root ──────────────────────────────────────────────────────────────
 node_modules
-.next
+.pnpm-store
+
+# ── Build outputs ──────────────────────────────────────────────────────────────
 dist
-.git
-.env*
-*.log
-coverage
-.turbo
+.next
 out
+build
+
+# ── Turbo / TS caches ─────────────────────────────────────────────────────────
+.turbo
+**/*.tsbuildinfo
+
+# ── Dev / test artefacts ──────────────────────────────────────────────────────
+coverage
+*.log
+*.local
+
+# ── VCS & IDE ─────────────────────────────────────────────────────────────────
+.git
+.gitignore
+.github
+.husky
+
+# ── Secrets — NEVER bake a .env file into an image ────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── OS noise ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

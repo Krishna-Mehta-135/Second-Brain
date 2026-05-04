@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 // Note: API_URL should be defined in .env as a server-side only variable
-const API_URL = process.env.API_URL || "http://127.0.0.1:9898";
+const API_URL = process.env.API_URL || "http://127.0.0.1:8000";
 
 export type ActionState = {
   error?: string;

@@ -5,6 +5,8 @@ on:
     branches: [main, develop]
   push:
     branches: [main]
+  # Allow the deploy workflow to call this as a reusable CI gate
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}

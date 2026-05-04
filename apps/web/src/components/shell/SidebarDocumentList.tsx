@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Document } from "@repo/types";
-import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { LayoutGroup, motion } from "framer-motion";
 import { useDocuments } from "@/lib/documents/useDocuments";
@@ -269,7 +275,7 @@ function insertionRail(key: string) {
   );
 }
 
-function FolderTreeBranch({
+const FolderTreeBranch = React.memo(function FolderTreeBranch({
   segments,
   node,
   renderOrderedListInFolder,
@@ -300,16 +306,68 @@ function FolderTreeBranch({
   isDragging: boolean;
   activeDragFolderPath: string | undefined;
 }) {
+  const pathname = usePathname();
   const label = segments[segments.length - 1] ?? "";
   const pathKey = segments.join("/");
   const [open, setOpen] = useState(segments.length <= 2);
   const { documents, deleteDocument, updateDocument } = useDocuments();
   const nestTarget = nestHoverPath === pathKey;
   const isThisFolderDragging = activeDragFolderPath === pathKey;
+  const [isEditing, setIsEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const childFolders = [...node.children.entries()].sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<{ path: string }>;
+      if (ev.detail.path === pathKey) {
+        setIsEditing(true);
+      }
+    };
+    window.addEventListener("knowdex:edit-folder", handler);
+    return () => window.removeEventListener("knowdex:edit-folder", handler);
+  }, [pathKey]);
+
+  const handleRename = (newName: string) => {
+    setIsEditing(false);
+    if (!newName.trim() || newName.trim() === label) return;
+    const safeName = newName.trim().replace(/\//g, "-");
+    const parentPath = segments.slice(0, -1).join("/");
+    const target = parentPath ? `${parentPath}/${safeName}` : safeName;
+
+    const toUpdate = documents.filter((d: Document) => {
+      const fp = (d.folderPath ?? "").trim();
+      return fp === pathKey || fp.startsWith(pathKey + "/");
+    });
+
+    toUpdate.forEach((d: Document) => {
+      const suffix = d.folderPath!.substring(pathKey.length);
+      const patch: Partial<Document> = { folderPath: target + suffix };
+      if (d.folderPath === pathKey && safeDocTitle(d) === label) {
+        patch.title = safeName;
+      }
+      void updateDocument(d.id, patch);
+    });
+  };
+
+  const representativeDoc = useMemo(() => {
+    return node.docs.find((d) => safeDocTitle(d) === label);
+  }, [node.docs, label]);
+
+  const otherDocs = useMemo(() => {
+    return representativeDoc
+      ? node.docs.filter((d) => d.id !== representativeDoc.id)
+      : node.docs;
+  }, [node.docs, representativeDoc]);
+
+  const isActive =
+    representativeDoc && pathname === `/documents/${representativeDoc.id}`;
 
   return (
     <div className={segments.length ? "ml-4" : ""}>
@@ -321,7 +379,9 @@ function FolderTreeBranch({
           const target = e.target as HTMLElement;
           // Only exclude the specific actions button, allow dragging on the main header/label
           if (target.closest('button[aria-label="Folder actions"]')) return;
-          e.preventDefault();
+          // Allow clicks on the chevron to pass through to toggle
+          if (target.closest(".sb-folder-toggle")) return;
+
           const parentKey = segments.slice(0, -1).join("/") || ROOT_LIST_KEY;
           beginFolderDrag(
             e.pointerId,
@@ -338,33 +398,99 @@ function FolderTreeBranch({
               ? "opacity-0"
               : isThisFolderDragging
                 ? "opacity-30"
-                : "hover:bg-[hsl(var(--sb-bg-hover))]/50"
+                : isActive
+                  ? "bg-[hsl(var(--sb-accent))]/10"
+                  : "hover:bg-[hsl(var(--sb-bg-hover))]/50"
         }`}
       >
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex flex-1 min-w-0 items-center gap-1.5 text-[14px] px-2 py-1 rounded text-[hsl(var(--sb-text-muted))] hover:text-white text-left transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen((v) => !v);
+          }}
+          className="sb-folder-toggle p-1.5 rounded text-[hsl(var(--sb-text-faint))] hover:text-white transition-colors"
         >
           {open ? (
             <ChevronDown size={13} className="shrink-0 opacity-70" />
           ) : (
             <ChevronRight size={13} className="shrink-0 opacity-70" />
           )}
-          <span className="truncate font-medium">{label}</span>
         </button>
+
+        {representativeDoc ? (
+          <Link
+            href={`/documents/${representativeDoc.id}`}
+            draggable={false}
+            className={`flex-1 min-w-0 flex items-center gap-1.5 text-[14px] py-1.5 pr-2 rounded font-medium transition-colors ${
+              isActive
+                ? "text-[hsl(var(--sb-accent))]"
+                : "text-[hsl(var(--sb-text-muted))] hover:text-white"
+            }`}
+          >
+            <Folder
+              size={13}
+              className={`shrink-0 ${isActive ? "text-[hsl(var(--sb-accent))]" : "opacity-70"}`}
+            />
+            {isEditing ? (
+              <input
+                ref={inputRef}
+                onFocus={(e) => e.currentTarget.select()}
+                defaultValue={label}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename(e.currentTarget.value);
+                  else if (e.key === "Escape") setIsEditing(false);
+                }}
+                onBlur={(e) => handleRename(e.currentTarget.value)}
+                onClick={(e) => e.preventDefault()}
+                className="flex-1 bg-transparent outline-none ring-1 ring-[hsl(var(--sb-accent))] px-1 rounded truncate min-w-0"
+              />
+            ) : (
+              <span className="truncate">{label}</span>
+            )}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex flex-1 min-w-0 items-center gap-1.5 text-[14px] py-1.5 pr-2 rounded text-[hsl(var(--sb-text-muted))] hover:text-white text-left transition-colors font-medium"
+          >
+            <Folder size={13} className="shrink-0 opacity-70" />
+            {isEditing ? (
+              <input
+                ref={inputRef}
+                onFocus={(e) => e.currentTarget.select()}
+                defaultValue={label}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename(e.currentTarget.value);
+                  else if (e.key === "Escape") setIsEditing(false);
+                }}
+                onBlur={(e) => handleRename(e.currentTarget.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-1 bg-transparent outline-none ring-1 ring-[hsl(var(--sb-accent))] px-1 rounded truncate min-w-0"
+              />
+            ) : (
+              <span className="truncate">{label}</span>
+            )}
+          </button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="shrink-0 p-1 rounded opacity-0 group-hover/frow:opacity-100 text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-all"
+              className="shrink-0 p-1 rounded opacity-0 group-hover/frow:opacity-100 text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-all mr-1.5"
               aria-label="Folder actions"
               onClick={(e) => e.stopPropagation()}
             >
               <Plus size={12} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className={MENU_SURFACE}>
+          <DropdownMenuContent
+            align="end"
+            className={MENU_SURFACE}
+            onCloseAutoFocus={(e) => e.preventDefault()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
             <DropdownMenuItem
               className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/10 cursor-pointer focus:bg-white/10 text-xs"
               onSelect={() => onNewNoteInFolder(pathKey)}
@@ -408,23 +534,10 @@ function FolderTreeBranch({
             )}
             <DropdownMenuItem
               className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/10 cursor-pointer focus:bg-white/10 text-xs"
-              onSelect={() => {
-                const newPath = window.prompt("Enter new folder path", pathKey);
-                if (newPath && newPath.trim() && newPath.trim() !== pathKey) {
-                  const target = newPath.trim();
-                  const toUpdate = documents.filter((d: Document) => {
-                    const fp = (d.folderPath ?? "").trim();
-                    return fp === pathKey || fp.startsWith(pathKey + "/");
-                  });
-                  toUpdate.forEach((d: Document) => {
-                    const suffix = d.folderPath!.substring(pathKey.length);
-                    void updateDocument(d.id, { folderPath: target + suffix });
-                  });
-                }
-              }}
+              onSelect={() => setIsEditing(true)}
             >
-              <FolderInput size={12} className="text-white/55" />
-              Move/Rename folder...
+              <Edit2 size={12} className="text-white/55" />
+              Rename folder
             </DropdownMenuItem>
             <DropdownMenuSeparator className="my-1 bg-white/10" />
             <DropdownMenuItem
@@ -456,28 +569,14 @@ function FolderTreeBranch({
               data-sb-doc-list={pathKey}
               className="space-y-0.5 list-none p-0 m-0"
             >
-              {renderOrderedListInFolder(pathKey, node.docs, node.children)}
+              {renderOrderedListInFolder(pathKey, otherDocs, node.children)}
             </ul>
           </LayoutGroup>
-          {childFolders.map(([nm, ch]) => (
-            <FolderTreeBranch
-              key={`${pathKey}/${nm}`}
-              segments={[...segments, nm]}
-              node={ch}
-              renderOrderedListInFolder={renderOrderedListInFolder}
-              onNewNoteInFolder={onNewNoteInFolder}
-              onNewSubfolder={onNewSubfolder}
-              nestHoverPath={nestHoverPath}
-              beginFolderDrag={beginFolderDrag}
-              isDragging={isDragging}
-              activeDragFolderPath={activeDragFolderPath}
-            />
-          ))}
         </div>
       )}
     </div>
   );
-}
+});
 
 export function SidebarDocumentList({
   search,
@@ -597,9 +696,16 @@ export function SidebarDocumentList({
           onPointerDown={(e) => {
             if (isTemp || e.button !== 0) return;
             const target = e.target as HTMLElement;
-            // Let button clicks (dropdown trigger) pass through.
-            if (target.closest("button")) return;
-            e.preventDefault();
+            // Let button clicks (dropdown trigger) and menu interactions pass through.
+            if (
+              target.closest("button") ||
+              target.closest('[role="menuitem"]') ||
+              target.closest('[role="menu"]') ||
+              target.closest("[data-radix-popper-content-wrapper]")
+            ) {
+              return;
+            }
+            // Do NOT capture pointer here, otherwise Link clicks are swallowed and navigation fails.
             beginGripDrag(e.pointerId, doc.id, listKey, e.clientX, e.clientY);
           }}
           className={`group list-none rounded-md transition-all duration-150 select-none ${
@@ -630,7 +736,7 @@ export function SidebarDocumentList({
               <FileText
                 className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-[hsl(var(--sb-accent))]" : "!text-white/40 group-hover:!text-white"}`}
               />
-              <span className="truncate">{safeTitle}</span>
+              <span className="truncate">{safeTitle || "Untitled"}</span>
             </Link>
 
             {!isTemp && (
@@ -643,7 +749,11 @@ export function SidebarDocumentList({
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className={DOC_MENU_SURFACE}>
+                <DropdownMenuContent
+                  align="end"
+                  className={DOC_MENU_SURFACE}
+                  onCloseAutoFocus={(e) => e.preventDefault()}
+                >
                   <div className="px-2 py-1.5 text-[11px] font-bold text-white/40 uppercase tracking-widest">
                     DOCUMENT
                   </div>

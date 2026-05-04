@@ -74,7 +74,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
 
     const load = async () => {
       try {
-        setIsLoading(true);
+        if (documents.length === 0) {
+          setIsLoading(true);
+        }
         setError(null);
         const qs = new URLSearchParams({ workspaceId: activeWorkspaceId });
         const res = await fetch(`/api/documents?${qs}`, {
@@ -98,6 +100,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     };
 
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.status, router, activeWorkspaceId, wsLoading]);
 
   const createDocument = useCallback(

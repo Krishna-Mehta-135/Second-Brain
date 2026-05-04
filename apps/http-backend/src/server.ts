@@ -6,8 +6,8 @@ const port = process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT, 10) : 8000;
 
 connectDB()
   .then(() => {
-    app.listen(port, "127.0.0.1", () => {
-      console.log(`Server is running at http://127.0.0.1:${port}`);
+    app.listen(port, "0.0.0.0", () => {
+      console.log(`Server is running at http://0.0.0.0:${port}`);
     });
   })
   .catch((err) => {

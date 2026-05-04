@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
-interface SecondBrainDB extends DBSchema {
+interface KnowdexDB extends DBSchema {
   documents: {
     key: string;
     value: {
@@ -23,11 +23,11 @@ interface SecondBrainDB extends DBSchema {
 }
 
 // Singleton DB connection — do not open multiple connections
-let dbPromise: Promise<IDBPDatabase<SecondBrainDB>> | null = null;
+let dbPromise: Promise<IDBPDatabase<KnowdexDB>> | null = null;
 
 function getDB() {
   if (!dbPromise) {
-    dbPromise = openDB<SecondBrainDB>("knowdex-v1", 1, {
+    dbPromise = openDB<KnowdexDB>("knowdex-v1", 1, {
       upgrade(db) {
         db.createObjectStore("documents", { keyPath: "docId" });
         const pendingStore = db.createObjectStore("pendingUpdates", {

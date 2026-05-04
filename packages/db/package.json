@@ -5,6 +5,11 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "prisma",
+    "client"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -12,7 +17,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "pnpm run generate && tsc -b",
     "typecheck": "tsc -p tsconfig.typecheck.json",
     "generate": "prisma generate",
     "db:push": "prisma db push",

@@ -1,32 +1,46 @@
+# docker-compose.yml — local development stack
+# ─────────────────────────────────────────────────────────────────────────────
+# Environment variables are injected at runtime; NO .env file is baked into
+# the images. Create a .env file at the repo root (see .env.example) and
+# Docker Compose will pick it up automatically — no env_file directive needed.
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
   redis:
     image: redis:7-alpine
     ports:
       - '6379:6379'
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes  # persistence enabled
+    command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
 
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: secondbrain
-      POSTGRES_PASSWORD: secondbrain
-      POSTGRES_DB: secondbrain
+      POSTGRES_USER: knowdex
+      POSTGRES_PASSWORD: knowdex
+      POSTGRES_DB: knowdex
     ports:
       - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U secondbrain -d secondbrain"]
+      test: ["CMD-SHELL", "pg_isready -U knowdex -d knowdex"]
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
+
+  # ── Application services ─────────────────────────────────────────────────────
 
   http-backend:
     build:
@@ -34,19 +48,27 @@ services:
       dockerfile: apps/http-backend/Dockerfile
       target: runner
     ports:
-      - '8000:8000'
+      - '${HTTP_PORT:-8000}:${HTTP_PORT:-8000}'
+    # All secrets injected at runtime — no .env file in the image
     environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://secondbrain:secondbrain@postgres:5432/secondbrain
+      NODE_ENV: production
+      DATABASE_URL: postgresql://knowdex:knowdex@postgres:5432/knowdex
       REDIS_URL: redis://redis:6379
-      HTTP_PORT: 8000
-      JWT_SECRET: ${JWT_SECRET:-secret}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      HTTP_PORT: ${HTTP_PORT:-8000}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
   ws-backend:
     build:
@@ -56,32 +78,46 @@ services:
     ports:
       - '8080:8080'
     environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://secondbrain:secondbrain@postgres:5432/secondbrain
+      NODE_ENV: production
+      DATABASE_URL: postgresql://knowdex:knowdex@postgres:5432/knowdex
       REDIS_URL: redis://redis:6379
       WS_PORT: 8080
-      JWT_SECRET: ${JWT_SECRET:-secret}
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
       target: runner
+      # NEXT_PUBLIC_* vars are baked into the bundle at build time
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8080}
     ports:
       - '3000:3000'
     environment:
+      # Server-side only (not baked into client bundle)
       API_URL: http://http-backend:8000
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-      NEXT_PUBLIC_WS_URL: ws://localhost:8080
+      NODE_ENV: production
     depends_on:
-      - http-backend
-      - ws-backend
+      http-backend:
+        condition: service_healthy
+      ws-backend:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   redis_data:

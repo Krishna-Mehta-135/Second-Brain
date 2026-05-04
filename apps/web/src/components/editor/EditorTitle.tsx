@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSyncManager } from "@/lib/sync/SyncContext";
+import { useDocuments } from "@/lib/documents/useDocuments";
 
 interface EditorTitleProps {
   docId: string;
@@ -37,14 +38,23 @@ export function EditorTitle({
   placeholder = "Untitled",
 }: EditorTitleProps) {
   const manager = useSyncManager();
-  const [title, setTitle] = useState("");
+  const { documents } = useDocuments();
+  const initialDoc = documents.find((d) => d.id === docId);
+
+  const [title, setTitle] = useState(() =>
+    normalizeTitle(initialDoc?.title ?? ""),
+  );
   const titleRef = useRef<HTMLHeadingElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const yTitle = manager.doc.getText("title");
-    const initial = normalizeTitle(yTitle.toString());
-    setTitle(initial);
+
+    if (yTitle.length > 0) {
+      const initial = normalizeTitle(yTitle.toString());
+      setTitle(initial);
+      notifyTitle(docId, initial);
+    }
 
     const observer = () => {
       const normalized = normalizeTitle(yTitle.toString());
@@ -53,7 +63,6 @@ export function EditorTitle({
     };
 
     yTitle.observe(observer);
-    observer();
 
     return () => {
       yTitle.unobserve(observer);

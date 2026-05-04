@@ -12,7 +12,7 @@ interface Props {
 export default async function DocumentPage({ params }: Props) {
   const { docId } = await params;
   return (
-    <SyncProvider docId={docId}>
+    <SyncProvider key={docId} docId={docId}>
       <ClientEditor />
     </SyncProvider>
   );

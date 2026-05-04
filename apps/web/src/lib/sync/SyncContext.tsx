@@ -44,47 +44,18 @@ export function SyncProvider({
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [awareness, setAwareness] = useState<Awareness | null>(null);
 
-  const [manager, setManager] = useState<SyncManager | null>(null);
-  const managerRef = useRef<SyncManager | null>(null);
   const amRef = useRef<AwarenessManager | null>(null);
+  const [manager] = useState(() => new SyncManager(docId, getToken));
 
   useEffect(() => {
-    // 1. Initialize or replace manager when docId changes
-    if (managerRef.current && managerRef.current.docId !== docId) {
-      managerRef.current.destroy();
-      managerRef.current = null;
-    }
-
-    if (!managerRef.current) {
-      const newManager = new SyncManager(docId, getToken);
-      managerRef.current = newManager;
-      setManager(newManager);
-    }
-
-    const currentManager = managerRef.current;
-    const unsub = currentManager.onStatusChange(setStatus);
-    currentManager.init();
+    const unsub = manager.onStatusChange(setStatus);
+    manager.init();
 
     return () => {
       unsub();
-      // Only destroy if docId changes, handled by the next effect run
-      // Or when component unmounts (handled by the cleanup effect below)
+      manager.destroy();
     };
-  }, [docId, getToken]);
-
-  // Cleanup on unmount only
-  useEffect(() => {
-    return () => {
-      if (managerRef.current) {
-        managerRef.current.destroy();
-        managerRef.current = null;
-      }
-      if (amRef.current) {
-        amRef.current.destroy();
-        amRef.current = null;
-      }
-    };
-  }, []);
+  }, [manager]);
 
   // Initialize AwarenessManager when auth is ready
   useEffect(() => {
@@ -105,21 +76,18 @@ export function SyncProvider({
     }
   }, [auth, manager]);
 
-  if (!manager) {
-    return null; // Wait for manager to initialize
-  }
+  const contextValue = React.useMemo(
+    () => ({
+      manager,
+      doc: manager.doc,
+      docId: manager.docId,
+      awareness,
+      status,
+    }),
+    [manager, awareness, status],
+  );
 
   return (
-    <SyncContext.Provider
-      value={{
-        manager,
-        doc: manager.doc,
-        docId: manager.docId,
-        awareness,
-        status,
-      }}
-    >
-      {children}
-    </SyncContext.Provider>
+    <SyncContext.Provider value={contextValue}>{children}</SyncContext.Provider>
   );
 }

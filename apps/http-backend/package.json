@@ -2,6 +2,9 @@
   "name": "http-backend",
   "version": "1.0.0",
   "main": "dist/server.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "start": "node dist/server.js",

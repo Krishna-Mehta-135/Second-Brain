@@ -1,159 +1,165 @@
-# Turborepo starter
+<div align="center">
+  <h1>Knowdex Core Architecture</h1>
+  <p><strong>High-Performance Distributed Knowledge Management Protocol</strong></p>
+</div>
 
-This Turborepo starter is maintained by the Turborepo core team.
+<br />
 
-## Using this example
+Knowdex is a local-first, structurally consistent collaborative knowledge graph. It relies on advanced Conflict-free Replicated Data Types (CRDTs) to guarantee high-fidelity data synchronization and deterministic conflict resolution across an arbitrarily large network of edge clients.
 
-Run the following command:
+## Architectural Topology
 
-```sh
-npx create-turbo@latest
+The backend topology separates long-lived, stateful connections from stateless HTTP requests, ensuring that resource-intensive WebSocket broadcasts do not degrade standard API performance.
+
+```mermaid
+graph TB
+    subgraph Client Layer
+        Web[Next.js Client]
+        Mobile[Mobile Client]
+    end
+
+    subgraph Load Balancing
+        Nginx[Nginx Reverse Proxy / API Gateway]
+    end
+
+    subgraph Microservices
+        Auth[HTTP Backend Node]
+        Sync[WebSocket Sync Node]
+    end
+
+    subgraph Persistence Layer
+        DB[(PostgreSQL 15)]
+        Cache[(Redis 7 Cluster)]
+    end
+
+    subgraph External
+        LLM[Google Generative AI]
+    end
+
+    Web -->|HTTPS| Nginx
+    Mobile -->|HTTPS| Nginx
+
+    Nginx -->|Route: /api/*| Auth
+    Nginx -->|Route: /ws/*| Sync
+
+    Auth -->|Read/Write| DB
+    Sync -->|CRDT Updates| DB
+
+    Sync -.->|Pub/Sub Backbone| Cache
+    Auth -.->|Session State| Cache
+
+    Sync -->|Streaming Generation| LLM
 ```
 
-## What's inside?
+## Conflict-Free Replicated Data Protocol (CRDT)
 
-This Turborepo includes the following packages/apps:
+At the core of the collaboration engine lies the `Y.js` protocol. When concurrent updates occur across isolated network partitions, the CRDT algorithm guarantees that all peers mathematically converge on the identical final document state.
 
-### Apps and Packages
+### Multi-Node Synchronization Flow
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+```mermaid
+sequenceDiagram
+    participant C1 as Client 1 (Edge)
+    participant N1 as WS Gateway Alpha
+    participant MessageBus as Redis Backbone
+    participant N2 as WS Gateway Beta
+    participant C2 as Client 2 (Edge)
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+    Note over C1,C2: Both clients possess Document Version V1
+    C1->>C1: User types "Hello"
+    C1->>N1: Transmit Uint8Array Update (V2)
+    N1->>MessageBus: Publish Topic [DocID] -> V2
+    MessageBus->>N2: Distribute to Subscriber
+    N2->>C2: Dispatch binary frame (V2)
+    C2->>C2: Apply fractional update (Y.applyUpdate)
+    Note over C1,C2: Guaranteed state convergence without operational transformation (OT)
 ```
 
-Without global `turbo`, use your package manager:
+## Component Architecture
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+Knowdex is orchestrated as a Turborepo monorepo, delineating rigid boundaries between generic utilities and domain-specific microservices.
+
+```mermaid
+graph LR
+    subgraph Applications
+        Web(web)
+        Http(http-backend)
+        Ws(ws-backend)
+    end
+
+    subgraph Internal Packages
+        UI(ui)
+        Types(types)
+        Db(db)
+        Crdt(crdt)
+        Config(config)
+    end
+
+    Web --> UI
+    Web --> Types
+    Web --> Crdt
+
+    Http --> Types
+    Http --> Db
+
+    Ws --> Types
+    Ws --> Db
+    Ws --> Crdt
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### Module Specifications
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+- **`@repo/crdt`**: Defines the proprietary binary codecs utilized for data transport between clients and the WebSocket gateway, preventing parsing overhead associated with JSON payloads.
+- **`@repo/db`**: Manages the unified PostgreSQL schema via Prisma. Enforces foreign key constraints and referential integrity across the system.
+- **`apps/ws-backend`**: A scalable, non-blocking Node.js process dedicated exclusively to multiplexing WebSocket streams and coordinating the Y.js state vector.
+- **`apps/http-backend`**: A traditional stateless REST API managing authentication boundaries, role-based access control, and metadata querying.
 
-```sh
-turbo build --filter=docs
+## System Prerequisites
+
+To deploy or build the Knowdex ecosystem, the following host environments must be provisioned:
+
+- Container Orchestrator: Docker Engine 24.0+
+- Orchestration Tool: Docker Compose v2.20+
+- Runtime: Node.js 20.x LTS
+- Package Manager: pnpm 9.0+
+
+## Local Deployment
+
+1. **Environment Configuration**
+   Provision the environment variables required for cryptographic signing and external integrations.
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Containerized Provisioning**
+   Initialize the complete stack via Docker Compose. This strategy ensures parity with production topology.
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+3. **Service Verification**
+   Verify all subsystems are operational and responding to health checks.
+   - Application Gateway: http://localhost:3000
+   - REST Services: http://localhost:8000/health
+   - WebSocket Services: http://localhost:8080/health
+
+## Continuous Delivery Pipeline
+
+The CI/CD pipeline enforces rigorous static analysis prior to image generation.
+
+```mermaid
+graph LR
+    Push[Code Push] --> Typecheck[TSC Matrix]
+    Push --> Lint[ESLint]
+    Push --> Test[Jest Suites]
+
+    Typecheck --> Build[Docker Build]
+    Lint --> Build
+    Test --> Build
+
+    Build --> Deploy[Rolling Update]
 ```
 
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+Production environments utilize independently deployed artifacts, allowing the WebSocket nodes to scale autonomously from the HTTP cluster in response to high concurrency scenarios.
