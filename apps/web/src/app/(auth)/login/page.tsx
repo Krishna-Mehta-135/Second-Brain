@@ -1,16 +1,19 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, Suspense } from "react";
 import { loginAction } from "@/lib/auth/actions";
 import Link from "next/link";
 import { Eye, EyeOff, AlertCircle, ArrowRight } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const [showPwd, setShowPwd] = useState(false);
+  const searchParams = useSearchParams();
+  const oauthError = searchParams.get("error");
 
   return (
-    <div className={state?.error ? "sb-shake" : ""}>
+    <div className={state?.error || oauthError ? "sb-shake" : ""}>
       <div className="mb-8">
         <h1
           className="text-2xl font-bold text-white mb-1.5"
@@ -37,6 +40,7 @@ export default function LoginPage() {
               </svg>
             ),
             label: "GitHub",
+            href: `${process.env.NEXT_PUBLIC_API_URL}/auth/github`,
           },
           {
             icon: (
@@ -54,16 +58,18 @@ export default function LoginPage() {
                   fill="#FBBC05"
                 />
                 <path
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   fill="#EA4335"
                 />
               </svg>
             ),
             label: "Google",
+            href: `${process.env.NEXT_PUBLIC_API_URL}/auth/google`,
           },
         ].map((b) => (
-          <button
+          <a
             key={b.label}
+            href={b.href}
             className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-zinc-400 hover:text-white transition-all"
             style={{
               background: "rgba(255,255,255,0.03)",
@@ -72,7 +78,7 @@ export default function LoginPage() {
           >
             {b.icon}
             {b.label}
-          </button>
+          </a>
         ))}
       </div>
 
@@ -136,10 +142,10 @@ export default function LoginPage() {
           </button>
         </div>
 
-        {state?.error && (
+        {(state?.error || oauthError) && (
           <div className="flex items-center gap-1.5 text-red-400 text-xs">
             <AlertCircle size={12} />
-            {state.error}
+            {state?.error || oauthError}
           </div>
         )}
 
@@ -171,5 +177,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[400px]" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

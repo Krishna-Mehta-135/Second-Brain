@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 
 const STORAGE_KEY = "knowdex-starred-docs";
+const EVENT_NAME = "knowdex-starred-updated";
 
 export function useStarredDocs() {
   const [starredIds, setStarredIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
+  const load = useCallback(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) setStarredIds(new Set(JSON.parse(stored) as string[]));
@@ -16,6 +17,12 @@ export function useStarredDocs() {
     }
   }, []);
 
+  useEffect(() => {
+    load();
+    window.addEventListener(EVENT_NAME, load);
+    return () => window.removeEventListener(EVENT_NAME, load);
+  }, [load]);
+
   const toggleStar = useCallback((docId: string) => {
     setStarredIds((prev) => {
       const next = new Set(prev);
@@ -23,6 +30,7 @@ export function useStarredDocs() {
       else next.add(docId);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+        window.dispatchEvent(new Event(EVENT_NAME));
       } catch (e) {
         console.error("Failed to save starred docs", e);
       }

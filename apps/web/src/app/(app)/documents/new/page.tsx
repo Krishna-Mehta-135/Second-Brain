@@ -18,13 +18,13 @@ export default function NewDocumentPage() {
       try {
         const doc = await createDocument();
         if (doc) {
-          router.push(`/documents/${doc.id}`);
+          router.replace(`/documents/${doc.id}`);
         } else {
-          router.push("/documents");
+          router.replace("/documents");
         }
       } catch (err) {
         console.error("Failed to auto-create document:", err);
-        router.push("/documents");
+        router.replace("/documents");
       }
     }
 

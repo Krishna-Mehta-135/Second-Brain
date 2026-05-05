@@ -21,6 +21,29 @@ export default function SettingsPage() {
 
   const user = auth.status === "authenticated" ? auth.session.user : null;
 
+  const handleUpdateName = async () => {
+    if (!user) return;
+    const newName = window.prompt("Enter new display name:", user.name);
+    if (!newName || newName.trim() === "" || newName === user.name) return;
+
+    try {
+      const res = await fetch("/api/auth/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName.trim() }),
+      });
+      if (res.ok) {
+        window.location.reload();
+      } else {
+        const error = await res.json().catch(() => ({}));
+        alert(error?.message || "Failed to update display name");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("An error occurred");
+    }
+  };
+
   const sections = [
     {
       title: "Workspace",
@@ -40,7 +63,7 @@ export default function SettingsPage() {
           icon: <User size={16} className="text-[hsl(var(--sb-accent))]" />,
           label: "Display name",
           value: user?.name ?? "—",
-          action: null,
+          action: handleUpdateName,
         },
         {
           icon: <Mail size={16} className="text-[hsl(var(--sb-accent))]" />,
@@ -100,13 +123,19 @@ export default function SettingsPage() {
             </h2>
             <div className="rounded-xl border border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] overflow-hidden divide-y divide-[hsl(var(--sb-border))]">
               {section.items.map((item) => {
-                const clickable = typeof item.action === "string";
+                const clickable = item.action !== null;
                 const Wrapper: "button" | "div" = clickable ? "button" : "div";
                 const extra =
                   clickable && item.action
                     ? ({
                         type: "button",
-                        onClick: () => router.push(item.action as string),
+                        onClick: () => {
+                          if (typeof item.action === "string") {
+                            router.push(item.action);
+                          } else if (typeof item.action === "function") {
+                            item.action();
+                          }
+                        },
                       } as const)
                     : {};
                 return (

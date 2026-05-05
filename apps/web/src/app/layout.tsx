@@ -34,11 +34,14 @@ async function getInitialAuthState(): Promise<AuthState> {
   const cookieStore = await cookies();
   const token = cookieStore.get("session")?.value;
 
+  console.log(`[Layout] Session token found: ${!!token}`);
+
   if (!token) {
     return { status: "unauthenticated" };
   }
 
   try {
+    console.log(`[Layout] Validating session with backend: ${API_URL}`);
     const res = await fetch(`${API_URL}/api/v1/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -47,12 +50,17 @@ async function getInitialAuthState(): Promise<AuthState> {
     });
 
     if (!res.ok) {
+      console.warn(`[Layout] Session validation failed: ${res.status}`);
       return { status: "unauthenticated" };
     }
 
     const session = (await res.json()) as Session;
+    console.log(
+      `[Layout] Session validated successfully for: ${session.user.email}`,
+    );
     return { status: "authenticated", session };
-  } catch {
+  } catch (error) {
+    console.error(`[Layout] Error connecting to backend:`, error);
     return { status: "unauthenticated" };
   }
 }

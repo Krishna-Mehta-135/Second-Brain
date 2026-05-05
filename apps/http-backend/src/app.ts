@@ -27,6 +27,12 @@ app.use(
 
 app.use(express.json());
 
+// Request Logger for debugging
+app.use((req, res, next) => {
+  console.log(`[Request] ${req.method} ${req.url}`);
+  next();
+});
+
 // Health check — must be before auth middleware
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
@@ -38,5 +44,11 @@ app.use("/api/v1/content", contentRouter);
 app.use("/api/v1/brain", brainRouter);
 app.use("/api/v1/documents", documentRouter);
 app.use("/api/v1/workspaces", workspaceRouter);
+
+// Catch-all for 404s
+app.use((req, res) => {
+  console.log(`[404] Not Found: ${req.method} ${req.url}`);
+  res.status(404).json({ message: `Route ${req.method} ${req.url} not found` });
+});
 
 export { app };

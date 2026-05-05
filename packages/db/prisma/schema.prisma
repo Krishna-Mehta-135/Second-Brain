@@ -12,7 +12,10 @@ model User {
   id                       String                   @id @default(uuid())
   username                 String                   @unique
   email                    String                   @unique
-  password                 String
+  password                 String?
+  googleId                 String?                  @unique
+  githubId                 String?                  @unique
+  createdAt                DateTime                 @default(now())
   contents                 Content[]
   links                    Link[]
   shares                   Share[]
