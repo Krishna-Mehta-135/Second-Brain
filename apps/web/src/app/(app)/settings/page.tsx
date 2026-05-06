@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/auth/useAuth";
 import { logoutAction } from "@/lib/auth/actions";
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useTransition, useState } from "react";
 import {
   User,
   Mail,
@@ -13,6 +13,16 @@ import {
   ChevronRight,
   Settings,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Button,
+  Input,
+} from "@repo/ui";
 
 export default function SettingsPage() {
   const auth = useAuth();
@@ -21,11 +31,23 @@ export default function SettingsPage() {
 
   const user = auth.status === "authenticated" ? auth.session.user : null;
 
-  const handleUpdateName = async () => {
-    if (!user) return;
-    const newName = window.prompt("Enter new display name:", user.name);
-    if (!newName || newName.trim() === "" || newName === user.name) return;
+  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [isUpdatingName, setIsUpdatingName] = useState(false);
 
+  const handleUpdateNameClick = () => {
+    if (!user) return;
+    setNewName(user.name);
+    setIsNameModalOpen(true);
+  };
+
+  const submitUpdateName = async () => {
+    if (!newName || newName.trim() === "" || newName === user?.name) {
+      setIsNameModalOpen(false);
+      return;
+    }
+
+    setIsUpdatingName(true);
     try {
       const res = await fetch("/api/auth/me", {
         method: "PUT",
@@ -37,10 +59,12 @@ export default function SettingsPage() {
       } else {
         const error = await res.json().catch(() => ({}));
         alert(error?.message || "Failed to update display name");
+        setIsUpdatingName(false);
       }
     } catch (e) {
       console.error(e);
       alert("An error occurred");
+      setIsUpdatingName(false);
     }
   };
 
@@ -63,7 +87,7 @@ export default function SettingsPage() {
           icon: <User size={16} className="text-[hsl(var(--sb-accent))]" />,
           label: "Display name",
           value: user?.name ?? "—",
-          action: handleUpdateName,
+          action: handleUpdateNameClick,
         },
         {
           icon: <Mail size={16} className="text-[hsl(var(--sb-accent))]" />,
@@ -196,6 +220,48 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isNameModalOpen} onOpenChange={setIsNameModalOpen}>
+        <DialogContent className="sm:max-w-[425px] !bg-[hsl(var(--sb-bg-panel))] !border border-[hsl(var(--sb-border))] !ring-0 !rounded-xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white text-lg font-semibold tracking-tight">
+              Change Display Name
+            </DialogTitle>
+            <DialogDescription className="text-[hsl(var(--sb-text-muted))] text-sm">
+              Enter a new display name below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              id="name"
+              className="w-full bg-[hsl(var(--sb-bg-hover))] border border-[hsl(var(--sb-border))] text-white focus-visible:!ring-1 focus-visible:!ring-[hsl(var(--sb-accent))] focus-visible:!border-[hsl(var(--sb-accent))] rounded-lg h-10 px-3"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitUpdateName();
+              }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsNameModalOpen(false)}
+              disabled={isUpdatingName}
+              className="!bg-transparent border-[hsl(var(--sb-border))] text-[hsl(var(--sb-text-muted))] hover:!bg-[hsl(var(--sb-bg-hover))] hover:!text-white rounded-lg h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={submitUpdateName}
+              disabled={isUpdatingName}
+              className="!bg-[hsl(var(--sb-accent))] text-white hover:!bg-[hsl(var(--sb-accent))]/90 rounded-lg h-9 shadow-[0_0_15px_hsla(var(--sb-accent-glow)/0.4)] !border-0"
+            >
+              {isUpdatingName ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

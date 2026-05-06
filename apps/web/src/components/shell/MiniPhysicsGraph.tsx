@@ -10,13 +10,13 @@ const MG_W = 200,
   MG_H = 160;
 /** Weaker repulsion + shorter springs keep the cluster centered (Obsidian-like). */
 const MG_REPULSION = 340,
-  MG_SPRING = 0.028,
-  MG_REST = 44,
-  MG_GRAVITY = 0.0034,
-  MG_DAMP = 0.86;
+  MG_SPRING = 0.012, // Smoother
+  MG_REST = 40,
+  MG_GRAVITY = 0.002, // Lower
+  MG_DAMP = 0.92; // Higher
 /** Gentle push inward near edges — avoids nodes “sticking” to the bbox border. */
 const MG_EDGE_MARGIN = 20;
-const MG_EDGE_SOFT = 0.09;
+const MG_EDGE_SOFT = 0.08;
 
 interface GraphNode {
   id: number;
@@ -55,10 +55,14 @@ export function MiniPhysicsGraph() {
   useEffect(() => {
     if (documents.length === 0) return;
 
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+    const baseR = isMobile ? 4.5 : 2.8;
+    const activeR = isMobile ? 6.5 : 4.2;
+
     const newNodes: GraphNode[] = documents.slice(0, 10).map((doc, i) => ({
       id: i,
       docId: doc.id,
-      r: doc.id === currentDocId ? 5 : 3.5,
+      r: doc.id === currentDocId ? activeR : baseR,
       label: doc.title || "Untitled",
     }));
 
@@ -338,6 +342,7 @@ export function MiniPhysicsGraph() {
         const isActive = n.docId === currentDocId;
         const isBacklink = backlinkIds.has(n.docId);
         const isRelated = hasFocus ? relatedToFocus.has(i) : true;
+        const isHovered = focusIdx === i;
 
         // Color logic: active = accent, backlink = white, others = dimmed white
         const nodeColor = isActive
@@ -391,16 +396,22 @@ export function MiniPhysicsGraph() {
                 transition: "fill 0.2s",
               }}
             />
-            {/* Label — only show for active + hovered nodes */}
-            {(isActive || isDrag || focusIdx === i) && (
+            {/* Label — only show for active, hovered, or dragged nodes */}
+            {(isActive || isDrag || isHovered) && (
               <text
                 x={pos[i]!.x}
-                y={pos[i]!.y + n.r + 9}
+                y={
+                  pos[i]!.y +
+                  n.r +
+                  (typeof window !== "undefined" && window.innerWidth < 640
+                    ? 12
+                    : 9)
+                }
                 textAnchor="middle"
                 fill="#ffffff"
-                fontSize="6"
+                fontSize="9"
                 className="pointer-events-none"
-                style={{ fontWeight: isActive ? 700 : 400 }}
+                style={{ fontWeight: isActive ? 700 : 400, opacity: 1 }}
               >
                 {n.label.length > 18 ? n.label.slice(0, 16) + "…" : n.label}
               </text>

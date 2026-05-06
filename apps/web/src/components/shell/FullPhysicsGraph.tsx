@@ -8,11 +8,12 @@ import { useBacklinks } from "@/lib/documents/useBacklinks";
 // ─── Full Physics Graph for /graph page ──────────────────────────────────────
 const MG_W = 1200,
   MG_H = 800;
-const MG_REPULSION = 2800,
-  MG_SPRING = 0.018,
-  MG_REST = 120,
-  MG_GRAVITY = 0.0012,
-  MG_DAMP = 0.82;
+/** Synchronized with MiniPhysicsGraph for consistent feel */
+const MG_REPULSION = 3400,
+  MG_SPRING = 0.012,
+  MG_REST = 130,
+  MG_GRAVITY = 0.001,
+  MG_DAMP = 0.92;
 
 interface GraphNode {
   id: number;
@@ -34,6 +35,12 @@ export function FullPhysicsGraph() {
   const [edges, setEdges] = useState<{ a: number; b: number }[]>([]);
   const [focusIdx, setFocusIdx] = useState<number | null>(null);
 
+  // Zoom/Pan state
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const isPanningRef = useRef(false);
+  const lastMousePosRef = useRef({ x: 0, y: 0 });
+
   const posRef = useRef<{ x: number; y: number }[]>([]);
   const velRef = useRef<{ vx: number; vy: number }[]>([]);
   const dragRef = useRef<{
@@ -50,10 +57,17 @@ export function FullPhysicsGraph() {
   useEffect(() => {
     if (documents.length === 0) return;
 
-    const newNodes: GraphNode[] = documents.slice(0, 10).map((doc, i) => ({
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+    const baseR = isMobile ? 6 : 3.5;
+    const activeR = isMobile ? 10 : 6;
+
+    // Initial zoom for mobile
+    if (isMobile && zoom === 1) setZoom(1.4);
+
+    const newNodes: GraphNode[] = documents.slice(0, 15).map((doc, i) => ({
       id: i,
       docId: doc.id,
-      r: doc.id === currentDocId ? 8 : 4.5,
+      r: doc.id === currentDocId ? activeR : baseR,
       label: doc.title || "Untitled",
     }));
 
@@ -91,7 +105,7 @@ export function FullPhysicsGraph() {
         }
         if (i === 0) return { x: MG_W / 2, y: MG_H / 2 };
         const a = (i / Math.max(1, newNodes.length - 1)) * Math.PI * 2;
-        const radius = 100 + Math.random() * 40 - 20;
+        const radius = 300 + Math.random() * 120 - 60;
         return {
           x: MG_W / 2 + Math.cos(a) * radius,
           y: MG_H / 2 + Math.sin(a) * radius,
@@ -109,7 +123,7 @@ export function FullPhysicsGraph() {
       return newNodes;
     });
     setEdges(newEdges);
-  }, [documents, currentDocId]);
+  }, [documents, currentDocId, zoom]);
 
   // Physics simulation loop
   useEffect(() => {
@@ -186,18 +200,54 @@ export function FullPhysicsGraph() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [edges]);
 
-  const toSVG = useCallback((e: React.MouseEvent) => {
-    if (!svgRef.current) return { x: 0, y: 0 };
-    const r = svgRef.current.getBoundingClientRect();
-    return {
-      x: ((e.clientX - r.left) / r.width) * MG_W,
-      y: ((e.clientY - r.top) / r.height) * MG_H,
+  // Wheel listener attached to parent container for full coverage
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaY > 0 ? 0.98 : 1.02; // Slower zoom
+      setZoom((z) => Math.max(0.15, Math.min(6, z * delta)));
     };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
   }, []);
 
+  const toSVG = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (!svgRef.current) return { x: 0, y: 0 };
+      const r = svgRef.current.getBoundingClientRect();
+
+      let clientX = 0,
+        clientY = 0;
+      if ("touches" in e) {
+        const touch = e.touches[0];
+        if (!touch) return { x: 0, y: 0 };
+        clientX = touch.clientX;
+        clientY = touch.clientY;
+      } else {
+        clientX = (e as React.MouseEvent).clientX;
+        clientY = (e as React.MouseEvent).clientY;
+      }
+
+      const sx = ((clientX - r.left) / r.width) * MG_W;
+      const sy = ((clientY - r.top) / r.height) * MG_H;
+
+      return {
+        x: (sx - pan.x) / zoom,
+        y: (sy - pan.y) / zoom,
+      };
+    },
+    [zoom, pan],
+  );
+
   const onDown = useCallback(
-    (e: React.MouseEvent, idx: number) => {
-      e.preventDefault();
+    (e: React.MouseEvent | React.TouchEvent, idx: number) => {
+      if (e.cancelable) e.preventDefault();
       e.stopPropagation();
       const { x, y } = toSVG(e);
       velRef.current[idx] = { vx: 0, vy: 0 };
@@ -213,14 +263,33 @@ export function FullPhysicsGraph() {
   );
 
   const onMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!dragRef.current) return;
-      const { x, y } = toSVG(e);
-      const { idx, ox, oy } = dragRef.current;
-      posRef.current[idx] = {
-        x: Math.max(15, Math.min(MG_W - 15, x - ox)),
-        y: Math.max(15, Math.min(MG_H - 15, y - oy)),
-      };
+    (e: React.MouseEvent | React.TouchEvent) => {
+      let clientX = 0,
+        clientY = 0;
+      if ("touches" in e) {
+        const touch = e.touches[0];
+        if (touch) {
+          clientX = touch.clientX;
+          clientY = touch.clientY;
+        }
+      } else {
+        clientX = (e as React.MouseEvent).clientX;
+        clientY = (e as React.MouseEvent).clientY;
+      }
+
+      if (dragRef.current) {
+        const { x, y } = toSVG(e);
+        const { idx, ox, oy } = dragRef.current;
+        posRef.current[idx] = {
+          x: Math.max(15, Math.min(MG_W - 15, x - ox)),
+          y: Math.max(15, Math.min(MG_H - 15, y - oy)),
+        };
+      } else if (isPanningRef.current) {
+        const dx = clientX - lastMousePosRef.current.x;
+        const dy = clientY - lastMousePosRef.current.y;
+        setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      }
+      lastMousePosRef.current = { x: clientX, y: clientY };
     },
     [toSVG],
   );
@@ -234,15 +303,30 @@ export function FullPhysicsGraph() {
       }
     }
     dragRef.current = null;
+    isPanningRef.current = false;
     setFocusIdx(null);
   }, [nodes, router]);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 0 && !dragRef.current) {
+      isPanningRef.current = true;
+      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+    }
+  }, []);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (touch && !dragRef.current) {
+      isPanningRef.current = true;
+      lastMousePosRef.current = { x: touch.clientX, y: touch.clientY };
+    }
+  }, []);
 
   const pos = posRef.current;
 
   if (!mounted || nodes.length === 0)
     return <div className="w-full h-full bg-transparent" />;
 
-  // Compute which nodes are neighbours of the focused node
   const relatedToFocus = new Set<number>();
   if (focusIdx !== null) {
     relatedToFocus.add(focusIdx);
@@ -254,137 +338,156 @@ export function FullPhysicsGraph() {
   const hasFocus = focusIdx !== null;
 
   return (
-    <svg
-      ref={svgRef}
-      viewBox={`0 0 ${MG_W} ${MG_H}`}
-      className="w-full h-full overflow-visible select-none"
-      onMouseMove={onMove}
-      onMouseUp={onUp}
-      onMouseLeave={onUp}
-      style={{ cursor: dragRef.current ? "grabbing" : "default" }}
+    <div
+      ref={containerRef}
+      className="w-full h-full relative overflow-hidden bg-[hsl(var(--sb-bg))] cursor-grab active:cursor-grabbing touch-none"
+      onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
     >
-      <defs>
-        <radialGradient id="fgActiveGlow" cx="50%" cy="50%" r="50%">
-          <stop
-            offset="0%"
-            stopColor="hsl(var(--sb-accent))"
-            stopOpacity="0.6"
-          />
-          <stop
-            offset="100%"
-            stopColor="hsl(var(--sb-accent))"
-            stopOpacity="0"
-          />
-        </radialGradient>
-        <radialGradient id="fgBacklinkGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      {/* Edges */}
-      {edges.map((e, idx) => {
-        if (!pos[e.a] || !pos[e.b]) return null;
-        const isHighlighted =
-          hasFocus && relatedToFocus.has(e.a) && relatedToFocus.has(e.b);
-        return (
-          <line
-            key={idx}
-            x1={pos[e.a]!.x}
-            y1={pos[e.a]!.y}
-            x2={pos[e.b]!.x}
-            y2={pos[e.b]!.y}
-            stroke={
-              isHighlighted
-                ? "rgba(255,255,255,0.75)"
-                : "hsl(var(--sb-border-hover))"
-            }
-            strokeWidth={isHighlighted ? "2" : "1"}
-            opacity={hasFocus && !isHighlighted ? 0.08 : 1}
-            style={{ transition: "opacity 0.15s, stroke 0.15s" }}
-          />
-        );
-      })}
-
-      {/* Nodes */}
-      {nodes.map((n, i) => {
-        const isDrag = dragRef.current?.idx === i;
-        if (!pos[i]) return null;
-
-        const isActive = n.docId === currentDocId;
-        const isBacklink = backlinkIds.has(n.docId);
-        const isRelated = hasFocus ? relatedToFocus.has(i) : true;
-
-        const nodeColor = isActive
-          ? "hsl(var(--sb-accent))"
-          : isBacklink
-            ? "#ffffff"
-            : "rgba(255,255,255,0.55)";
-
-        const nodeOpacity = hasFocus ? (isRelated ? 1 : 0.12) : 1;
-        const nodeR = n.r * 2;
-
-        return (
-          <g
-            key={i}
-            onMouseDown={(e) => onDown(e, i)}
-            onMouseEnter={() => !dragRef.current && setFocusIdx(i)}
-            onMouseLeave={() => !dragRef.current && setFocusIdx(null)}
-            style={{ cursor: isDrag ? "grabbing" : "pointer" }}
-            opacity={nodeOpacity}
-          >
-            {/* Active node glow halo */}
-            {isActive && (
-              <circle
-                cx={pos[i]!.x}
-                cy={pos[i]!.y}
-                r={nodeR + 14}
-                fill="url(#fgActiveGlow)"
-              />
-            )}
-            {/* Backlink node glow halo */}
-            {isBacklink && !isActive && (
-              <circle
-                cx={pos[i]!.x}
-                cy={pos[i]!.y}
-                r={nodeR + 10}
-                fill="url(#fgBacklinkGlow)"
-              />
-            )}
-            <circle
-              cx={pos[i]!.x}
-              cy={pos[i]!.y}
-              r={nodeR}
-              fill={nodeColor}
-              style={{
-                filter: isDrag
-                  ? `drop-shadow(0 0 14px hsl(var(--sb-accent)))`
-                  : isActive
-                    ? `drop-shadow(0 0 10px hsla(var(--sb-accent-glow)/0.9))`
-                    : isBacklink
-                      ? `drop-shadow(0 0 7px rgba(255,255,255,0.7))`
-                      : undefined,
-                transition: "fill 0.2s",
-              }}
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${MG_W} ${MG_H}`}
+        className="w-full h-full overflow-visible select-none"
+        onMouseMove={onMove}
+        onMouseUp={onUp}
+        onMouseLeave={onUp}
+        onTouchMove={onMove}
+        onTouchEnd={onUp}
+      >
+        <defs>
+          <radialGradient id="fgActiveGlow" cx="50%" cy="50%" r="50%">
+            <stop
+              offset="0%"
+              stopColor="hsl(var(--sb-accent))"
+              stopOpacity="0.6"
             />
-            <text
-              x={pos[i]!.x}
-              y={pos[i]!.y + nodeR + 16}
-              textAnchor="middle"
-              fill={isActive ? "hsl(var(--sb-accent))" : "#ffffff"}
-              fontSize="12"
-              className="pointer-events-none"
-              style={{
-                fontWeight: isActive ? 700 : 400,
-                opacity: hasFocus ? (isRelated ? 0.9 : 0.1) : 0.75,
-                transition: "opacity 0.15s",
-              }}
-            >
-              {n.label.length > 22 ? n.label.slice(0, 20) + "…" : n.label}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+            <stop
+              offset="100%"
+              stopColor="hsl(var(--sb-accent))"
+              stopOpacity="0"
+            />
+          </radialGradient>
+          <radialGradient id="fgBacklinkGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        <g transform={`translate(${pan.x}, ${pan.y}) scale(${zoom})`}>
+          {edges.map((e, idx) => {
+            if (!pos[e.a] || !pos[e.b]) return null;
+            const isHighlighted =
+              hasFocus && relatedToFocus.has(e.a) && relatedToFocus.has(e.b);
+            return (
+              <line
+                key={idx}
+                x1={pos[e.a]!.x}
+                y1={pos[e.a]!.y}
+                x2={pos[e.b]!.x}
+                y2={pos[e.b]!.y}
+                stroke={
+                  isHighlighted
+                    ? "rgba(255,255,255,0.75)"
+                    : "hsl(var(--sb-border-hover))"
+                }
+                strokeWidth={isHighlighted ? "2" : "1"}
+                opacity={hasFocus && !isHighlighted ? 0.08 : 1}
+                style={{ transition: "opacity 0.15s, stroke 0.15s" }}
+              />
+            );
+          })}
+
+          {nodes.map((n, i) => {
+            const isDrag = dragRef.current?.idx === i;
+            if (!pos[i]) return null;
+            const isActive = n.docId === currentDocId;
+            const isBacklink = backlinkIds.has(n.docId);
+            const isRelated = hasFocus ? relatedToFocus.has(i) : true;
+            const isHovered = focusIdx === i;
+            const nodeColor = isActive
+              ? "hsl(var(--sb-accent))"
+              : isBacklink
+                ? "#ffffff"
+                : "rgba(255,255,255,0.55)";
+            const nodeOpacity = hasFocus ? (isRelated ? 1 : 0.12) : 1;
+            const nodeR = n.r * 2;
+
+            return (
+              <g
+                key={i}
+                onMouseDown={(e) => onDown(e, i)}
+                onTouchStart={(e) => onDown(e, i)}
+                onMouseEnter={() => !dragRef.current && setFocusIdx(i)}
+                onMouseLeave={() => !dragRef.current && setFocusIdx(null)}
+                style={{ cursor: isDrag ? "grabbing" : "pointer" }}
+                opacity={nodeOpacity}
+              >
+                {isActive && (
+                  <circle
+                    cx={pos[i]!.x}
+                    cy={pos[i]!.y}
+                    r={nodeR + 14}
+                    fill="url(#fgActiveGlow)"
+                  />
+                )}
+                {isBacklink && !isActive && (
+                  <circle
+                    cx={pos[i]!.x}
+                    cy={pos[i]!.y}
+                    r={nodeR + 10}
+                    fill="url(#fgBacklinkGlow)"
+                  />
+                )}
+                <circle
+                  cx={pos[i]!.x}
+                  cy={pos[i]!.y}
+                  r={nodeR}
+                  fill={nodeColor}
+                  style={{
+                    filter: isDrag
+                      ? `drop-shadow(0 0 14px hsl(var(--sb-accent)))`
+                      : isActive
+                        ? `drop-shadow(0 0 10px hsla(var(--sb-accent-glow)/0.9))`
+                        : isBacklink
+                          ? `drop-shadow(0 0 7px rgba(255,255,255,0.7))`
+                          : undefined,
+                    transition: "fill 0.2s",
+                  }}
+                />
+                {(isHovered || isActive || isDrag) && (
+                  <text
+                    x={pos[i]!.x}
+                    y={pos[i]!.y + nodeR + 25}
+                    textAnchor="middle"
+                    fill={isActive ? "hsl(var(--sb-accent))" : "#ffffff"}
+                    fontSize="24"
+                    className="pointer-events-none"
+                    style={{
+                      fontWeight: isActive ? 700 : 400,
+                      opacity: 1,
+                      transition: "opacity 0.15s",
+                    }}
+                  >
+                    {n.label.length > 22 ? n.label.slice(0, 20) + "…" : n.label}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+
+      <div className="absolute bottom-6 right-6 flex flex-col gap-2">
+        <div className="bg-black/60 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl text-xs font-medium text-white/90 shadow-2xl flex items-center gap-3">
+          <span className="opacity-50">Scale</span>
+          <span className="min-w-[3ch] text-right font-mono">
+            {Math.round(zoom * 100)}%
+          </span>
+        </div>
+        <div className="text-[10px] text-white/40 text-right px-2">
+          Scroll to zoom • Drag to pan
+        </div>
+      </div>
+    </div>
   );
 }

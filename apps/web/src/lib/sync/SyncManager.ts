@@ -86,8 +86,9 @@ export class SyncManager {
 
     try {
       const token = await this.getToken();
-      const host =
+      let host =
         typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+      if (host === "localhost") host = "127.0.0.1";
       const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${host}:8080`;
       const url = `${wsUrl}/ws/documents/${this.docId}?token=${encodeURIComponent(token)}`;
 

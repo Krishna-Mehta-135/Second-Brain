@@ -13,7 +13,7 @@ export async function POST() {
 
   try {
     const res = await fetch(`${API_URL}/api/v1/auth/ws-token`, {
-      method: "POST",
+      method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
       },

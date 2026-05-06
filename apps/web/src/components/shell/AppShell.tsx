@@ -315,7 +315,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const userName = displayNameRaw || "Guest";
 
   return (
-    <div className="sb-root flex h-screen w-full bg-[hsl(var(--sb-bg))] text-[hsl(var(--sb-text))] overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-[hsl(var(--sb-bg))] text-[hsl(var(--sb-text))] overflow-hidden font-sans">
       {/* Left Sidebar */}
       {/* Mobile overlay backdrop for left sidebar — only show on mobile when sidebar is open */}
       {sidebarOpen && (
@@ -651,11 +651,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Topbar */}
-        <header className="h-12 border-b border-[hsl(var(--sb-border))] flex items-center justify-between px-4 shrink-0 bg-[hsl(var(--sb-bg))/0.8] backdrop-blur-md sticky top-0 z-10">
-          <div className="flex items-center gap-2">
+        <header className="h-12 border-b border-[hsl(var(--sb-border))] flex items-center justify-between px-2 sm:px-4 shrink-0 bg-[hsl(var(--sb-bg))/0.8] backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center gap-1 sm:gap-2 min-w-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 rounded text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-colors"
+              className="p-1.5 rounded text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-colors shrink-0"
             >
               {sidebarOpen ? (
                 <ChevronLeft size={16} />
@@ -663,32 +663,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <ChevronRight size={16} />
               )}
             </button>
-            <div className="flex items-center gap-1.5 text-sm text-[hsl(var(--sb-text-muted))]">
-              <span>Workspace</span>
+            <div className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm text-[hsl(var(--sb-text-muted))] min-w-0">
+              <span className="hidden xs:inline shrink-0">Workspace</span>
               <ChevronRight
                 size={12}
-                className="text-[hsl(var(--sb-text-faint))]"
+                className="text-[hsl(var(--sb-text-faint))] hidden xs:inline shrink-0"
               />
-              <span className="text-white font-medium truncate max-w-[200px]">
+              <span className="text-white font-medium truncate max-w-[120px] sm:max-w-[200px]">
                 {resolvedTitle || "Untitled"}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--sb-text-faint))] mr-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <div className="hidden xs:flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-[hsl(var(--sb-text-faint))] mr-0.5 sm:mr-1">
+              <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-green-500 inline-block" />
               Online
             </div>
             <button
               onClick={handleShare}
-              className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-colors"
+              className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-colors"
             >
               {shareCopied ? (
                 <Check size={13} className="text-green-400" />
               ) : (
                 <Copy size={13} />
               )}
-              {shareCopied ? "Copied!" : "Share"}
+              <span className="hidden sm:inline">
+                {shareCopied ? "Copied!" : "Share"}
+              </span>
             </button>
             <button
               onClick={() => {
@@ -699,7 +701,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 }
                 setRightPanelOpen(!rightPanelOpen);
               }}
-              className={`p-1.5 rounded transition-colors hidden md:flex ${rightPanelOpen ? "text-white bg-[hsl(var(--sb-bg-hover))]" : "text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))]"}`}
+              className={`p-1.5 rounded transition-colors flex ${rightPanelOpen ? "text-white bg-[hsl(var(--sb-bg-hover))]" : "text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))]"}`}
             >
               <Network size={16} />
             </button>
@@ -711,7 +713,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
-                className="w-64 p-2 bg-[#050505]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl"
+                className="w-56 sm:w-64 p-2 bg-[#050505]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl"
               >
                 <div className="px-2 py-2 text-[10px] font-bold text-white/40 uppercase tracking-widest">
                   DOCUMENT

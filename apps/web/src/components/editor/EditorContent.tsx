@@ -17,7 +17,7 @@ export function EditorContent({ editor }: EditorContentProps) {
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar relative scroll-smooth">
-      <div className="max-w-3xl mx-auto px-10 py-16">
+      <div className="max-w-3xl mx-auto px-4 sm:px-10 py-8 sm:py-16">
         <EditorTitle docId={docId} />
 
         <DocumentTagsBar docId={docId} />

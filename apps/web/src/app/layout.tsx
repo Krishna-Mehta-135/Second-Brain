@@ -78,7 +78,7 @@ export default async function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable}`}
       data-scroll-behavior="smooth"
     >
-      <body className="font-sans antialiased bg-background text-foreground">
+      <body className="sb-root font-sans antialiased bg-background text-foreground">
         <AuthProvider initialState={initialAuthState}>
           <TooltipProvider>
             {children}

@@ -128,7 +128,7 @@ export function EditorTitle({
       onKeyDown={handleKeyDown}
       data-placeholder={placeholder}
       className={`
-        text-5xl font-bold text-white mb-4 leading-tight tracking-tight
+        text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 leading-tight tracking-tight
         outline-none focus:outline-none
         empty:before:content-[attr(data-placeholder)]
         empty:before:text-[hsl(var(--sb-text-faint))]
