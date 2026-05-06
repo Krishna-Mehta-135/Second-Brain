@@ -86,11 +86,15 @@ export class SyncManager {
 
     try {
       const token = await this.getToken();
-      let host =
+      const host =
         typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
-      if (host === "localhost") host = "127.0.0.1";
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || `ws://${host}:8080`;
-      const url = `${wsUrl}/ws/documents/${this.docId}?token=${encodeURIComponent(token)}`;
+      const resolvedHost = host === "localhost" ? "127.0.0.1" : host;
+      // NEXT_PUBLIC_WS_URL is baked in at build time for production (wss://knowdex.me/ws).
+      // Strip any trailing slash to avoid double-slash in the path.
+      const wsBase = (
+        process.env.NEXT_PUBLIC_WS_URL || `ws://${resolvedHost}:8080`
+      ).replace(/\/$/, "");
+      const url = `${wsBase}/ws/documents/${this.docId}?token=${encodeURIComponent(token)}`;
 
       this.ws = new WebSocket(url);
       this.ws.binaryType = "arraybuffer";

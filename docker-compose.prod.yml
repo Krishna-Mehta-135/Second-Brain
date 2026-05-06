@@ -1,0 +1,72 @@
+# docker-compose.prod.yml — GCP production stack
+# ─────────────────────────────────────────────────────────────────────────────
+# NO postgres or redis containers here.
+# Database  → Cloud SQL (private IP via DATABASE_URL)
+# Cache/PubSub → Cloud Memorystore for Redis (private IP via REDIS_HOST)
+#
+# Secrets are injected at runtime from /opt/knowdex/.env on the VM.
+# The CI/CD deploy step writes that file via SSH before running this compose.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  http-backend:
+    image: ghcr.io/${GITHUB_REPO:?GITHUB_REPO is required}/http-backend:latest
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: production
+      HTTP_PORT: 8000
+      DATABASE_URL: ${DATABASE_URL:?required}
+      REDIS_URL: ${REDIS_URL:-}
+      JWT_SECRET: ${JWT_SECRET:?required}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      FRONTEND_URL: ${FRONTEND_URL:?required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  ws-backend:
+    image: ghcr.io/${GITHUB_REPO:?GITHUB_REPO is required}/ws-backend:latest
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      WS_PORT: 8080
+      DATABASE_URL: ${DATABASE_URL:?required}
+      # REDIS_HOST takes priority over REDIS_URL inside the app (keyPrefix: "knowdex:")
+      REDIS_HOST: ${REDIS_HOST:-}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_URL: ${REDIS_URL:-}
+      JWT_SECRET: ${JWT_SECRET:?required}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/${GITHUB_REPO:?GITHUB_REPO is required}/web:latest
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      API_URL: http://http-backend:8000
+    depends_on:
+      http-backend:
+        condition: service_healthy
+      ws-backend:
+        condition: service_healthy
+    restart: unless-stopped

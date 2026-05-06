@@ -89,10 +89,16 @@ interface LoggerContext {
   documentWasWarm?: boolean;
 }
 
-const redisTransport = new RedisTransport(
-  process.env.REDIS_URL ?? "redis://localhost:6379",
-  loggerInstance,
-);
+// Prefer REDIS_HOST (GCP Memorystore) with namespacing; fall back to REDIS_URL for local dev.
+const redisConfig = process.env.REDIS_HOST
+  ? {
+      host: process.env.REDIS_HOST,
+      port: parseInt(process.env.REDIS_PORT ?? "6379", 10),
+      keyPrefix: "knowdex:",
+    }
+  : (process.env.REDIS_URL ?? "redis://localhost:6379");
+
+const redisTransport = new RedisTransport(redisConfig, loggerInstance);
 const roomManager = new RoomManager(documentManager, loggerInstance);
 const coalesceManager = new CoalesceBufferManager(
   documentManager,
