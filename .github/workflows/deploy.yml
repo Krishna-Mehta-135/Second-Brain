@@ -78,7 +78,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            ${{ matrix.service == 'web' && format('NEXT_PUBLIC_API_URL=https://knowdex.me/api/v1\nNEXT_PUBLIC_WS_URL=wss://knowdex.me/ws') || '' }}
+            ${{ matrix.service == 'web' && 'NEXT_PUBLIC_API_URL=https://knowdex.me/api/v1' || '' }}
+            ${{ matrix.service == 'web' && 'NEXT_PUBLIC_WS_URL=wss://knowdex.me/ws' || '' }}
           # Scope the GHA layer cache per service so they don't overwrite each other
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
@@ -96,6 +97,29 @@ jobs:
         vm_ip: ${{ fromJson(format('["{0}", "{1}"]', secrets.VM_1_IP, secrets.VM_2_IP)) }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure directory exists on VM
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ matrix.vm_ip }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            sudo mkdir -p /opt/knowdex
+            sudo chown $USER:$USER /opt/knowdex
+
+      - name: Copy docker-compose to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ matrix.vm_ip }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          source: "docker-compose.prod.yml"
+          target: "/opt/knowdex/"
+
       - name: SSH deploy to VM
         uses: appleboy/ssh-action@v1
         with:
@@ -103,7 +127,7 @@ jobs:
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            set -e
+            set -euo pipefail
             cd /opt/knowdex
 
             # Write runtime env from GitHub Secrets so no secrets live in the image
@@ -111,7 +135,7 @@ jobs:
             NODE_ENV=production
             GITHUB_REPO=${{ github.repository }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
-            REDIS_HOST=${{ secrets.REDIS_HOST }}
+            REDIS_HOST=10.190.0.4
             REDIS_PORT=6379
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
