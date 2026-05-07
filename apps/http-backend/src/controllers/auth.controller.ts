@@ -109,7 +109,7 @@ const githubAuth = asyncHandler(async (req, res) => {
   console.log("[OAuth] Initiating GitHub Auth...");
   const rootUrl = "https://github.com/login/oauth/authorize";
 
-  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CALLBACK_URL) {
+  if (!process.env.GH_CLIENT_ID || !process.env.GH_CALLBACK_URL) {
     console.error("[OAuth] Missing GitHub configuration in .env");
     return res
       .status(500)
@@ -119,8 +119,8 @@ const githubAuth = asyncHandler(async (req, res) => {
   }
 
   const options = {
-    client_id: process.env.GITHUB_CLIENT_ID as string,
-    redirect_uri: process.env.GITHUB_CALLBACK_URL as string,
+    client_id: process.env.GH_CLIENT_ID as string,
+    redirect_uri: process.env.GH_CALLBACK_URL as string,
     scope: "user:email",
   };
 
@@ -146,9 +146,9 @@ const githubCallback = asyncHandler(async (req, res) => {
   const tokenUrl = "https://github.com/login/oauth/access_token";
   const values = {
     code,
-    client_id: process.env.GITHUB_CLIENT_ID as string,
-    client_secret: process.env.GITHUB_CLIENT_SECRET as string,
-    redirect_uri: process.env.GITHUB_CALLBACK_URL as string,
+    client_id: process.env.GH_CLIENT_ID as string,
+    client_secret: process.env.GH_CLIENT_SECRET as string,
+    redirect_uri: process.env.GH_CALLBACK_URL as string,
   };
 
   const { data: tokenData } = await axios.post(tokenUrl, values, {

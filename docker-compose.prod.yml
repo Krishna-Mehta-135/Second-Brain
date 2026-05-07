@@ -24,9 +24,9 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
-      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
+      GH_CLIENT_ID: ${GH_CLIENT_ID:-}
+      GH_CLIENT_SECRET: ${GH_CLIENT_SECRET:-}
+      GH_CALLBACK_URL: ${GH_CALLBACK_URL:-}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
