@@ -94,7 +94,8 @@ jobs:
     strategy:
       fail-fast: false  # continue deploying to the second VM even if the first fails
       matrix:
-        vm_ip: ${{ fromJson(format('["{0}", "{1}"]', secrets.VM_1_IP, secrets.VM_2_IP)) }}
+        # Simplified and clean
+        vm_ip: [ "${{ vars.VM_1_IP }}", "${{ vars.VM_2_IP }}" ]
 
     steps:
       - name: Checkout
