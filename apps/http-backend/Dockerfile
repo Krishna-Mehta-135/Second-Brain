@@ -40,7 +40,7 @@ RUN pnpm turbo run build --filter=http-backend...
 FROM builder AS pruner
 WORKDIR /app
 
-RUN pnpm deploy --filter=http-backend --prod --legacy /pruned/http-backend
+RUN pnpm deploy --filter=http-backend --prod --force-legacy-deploy /pruned/http-backend
 
 # ─── Stage 5: runner ──────────────────────────────────────────────────────────
 # Minimal image: just the built JS + pruned node_modules. No pnpm, no source.
