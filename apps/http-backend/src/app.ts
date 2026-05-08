@@ -42,6 +42,11 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
+// Root route for initial GCP load balancers
+app.get("/", (_req, res) => {
+  res.sendStatus(200);
+});
+
 //Routes
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/content", contentRouter);
