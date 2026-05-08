@@ -113,6 +113,14 @@ const server = createServer((req, res) => {
     res.end(JSON.stringify({ status: "ok" }));
     return;
   }
+
+  // Root route for initial GCP load balancers handshake
+  if (req.method === "GET" && req.url === "/") {
+    res.writeHead(200);
+    res.end("OK");
+    return;
+  }
+
   // All other HTTP requests are not handled; WS upgrade handles the real traffic
   res.writeHead(404);
   res.end();
