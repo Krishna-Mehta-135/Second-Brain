@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, develop]
   push:
-    branches: [main]
+    branches: [develop] # Remove 'main' here so it doesn't double-run
   # Allow the deploy workflow to call this as a reusable CI gate
   workflow_call:
 
