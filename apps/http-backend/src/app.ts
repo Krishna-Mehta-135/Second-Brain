@@ -9,6 +9,9 @@ import { workspaceRouter } from "./routers/workspace.routes.js";
 
 const app: Express = express();
 
+// 1. Tell Express to trust the GCP Load Balancer
+app.set("trust proxy", 1);
+
 // CORS Configuration
 app.use(
   cors({
@@ -19,6 +22,7 @@ app.use(
       "http://127.0.0.1:3000",
       "https://knowdex.me",
       "https://api.knowdex.me",
+      "https://canvassync.tech",
       process.env.FRONTEND_URL || "http://localhost:3000",
       /\.vercel\.app$/,
     ],
