@@ -249,7 +249,8 @@ export class SyncManager {
 
   send(msg: WSMessage): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(encodeMessage(msg));
+      // Cast to bypass TS complaining about SharedArrayBuffer vs ArrayBuffer incompatibility
+      this.ws.send(encodeMessage(msg) as unknown as BufferSource);
     }
   }
 
