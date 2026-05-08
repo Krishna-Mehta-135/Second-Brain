@@ -4,7 +4,7 @@ FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat
 ENV PNPM_HOME="/pnpm" \
     PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
 
 # ─── Stage 2: installer ───────────────────────────────────────────────────────
 # Install the full monorepo dependency tree so Turbo can build everything.
@@ -31,6 +31,7 @@ COPY turbo.json ./
 COPY packages   ./packages
 COPY apps/http-backend ./apps/http-backend
 
+RUN pnpm install --frozen-lockfile
 RUN pnpm turbo run build --filter=http-backend...
 
 # ─── Stage 4: pruner ──────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ RUN pnpm turbo run build --filter=http-backend...
 FROM builder AS pruner
 WORKDIR /app
 
-RUN pnpm deploy --filter=http-backend --prod /pruned/http-backend
+RUN pnpm deploy --filter=http-backend --prod --legacy /pruned/http-backend
 
 # ─── Stage 5: runner ──────────────────────────────────────────────────────────
 # Minimal image: just the built JS + pruned node_modules. No pnpm, no source.

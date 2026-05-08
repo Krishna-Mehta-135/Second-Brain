@@ -35,8 +35,6 @@ jobs:
             dockerfile: apps/http-backend/Dockerfile
           - service: ws-backend
             dockerfile: apps/ws-backend/Dockerfile
-          - service: web
-            dockerfile: apps/web/Dockerfile
 
     steps:
       - name: Checkout
@@ -77,9 +75,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            ${{ matrix.service == 'web' && 'NEXT_PUBLIC_API_URL=https://knowdex.me/api/v1' || '' }}
-            ${{ matrix.service == 'web' && 'NEXT_PUBLIC_WS_URL=wss://knowdex.me/ws' || '' }}
           # Scope the GHA layer cache per service so they don't overwrite each other
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,scope=${{ matrix.service }},mode=max
@@ -131,10 +126,14 @@ jobs:
             set -euo pipefail
             cd /opt/knowdex
 
+            # Force the repo name to lowercase for the pull
+            LOWER_REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+
             # Write runtime env from GitHub Secrets so no secrets live in the image
-            cat > .env <<'EOF'
+            cat > .env <<EOF
             NODE_ENV=production
-            GITHUB_REPO=${{ github.repository }}
+            # Use the lowercase version here!
+            GITHUB_REPO=$LOWER_REPO
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             REDIS_HOST=10.190.0.4
             REDIS_PORT=6379
@@ -143,10 +142,10 @@ jobs:
             FRONTEND_URL=https://knowdex.me
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
             GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            GOOGLE_CALLBACK_URL=https://knowdex.me/api/v1/auth/google/callback
+            GOOGLE_CALLBACK_URL=https://api.knowdex.me/api/v1/auth/google/callback
             GH_CLIENT_ID=${{ secrets.GH_CLIENT_ID }}
             GH_CLIENT_SECRET=${{ secrets.GH_CLIENT_SECRET }}
-            GH_CALLBACK_URL=https://knowdex.me/api/v1/auth/github/callback
+            GH_CALLBACK_URL=https://api.knowdex.me/api/v1/auth/github/callback
             EOF
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin

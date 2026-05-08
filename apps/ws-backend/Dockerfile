@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat
 ENV PNPM_HOME="/pnpm" \
     PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
 
 # ─── Stage 2: installer ───────────────────────────────────────────────────────
 FROM base AS installer
@@ -28,6 +28,7 @@ COPY turbo.json ./
 COPY packages   ./packages
 COPY apps/ws-backend ./apps/ws-backend
 
+RUN pnpm install --frozen-lockfile
 RUN pnpm turbo run build --filter=ws-backend...
 
 # ─── Stage 4: pruner ──────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ RUN pnpm turbo run build --filter=ws-backend...
 FROM builder AS pruner
 WORKDIR /app
 
-RUN pnpm deploy --filter=ws-backend --prod /pruned/ws-backend
+RUN pnpm deploy --filter=ws-backend --prod --legacy /pruned/ws-backend
 
 # ─── Stage 5: runner ──────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner

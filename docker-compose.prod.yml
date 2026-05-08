@@ -56,17 +56,3 @@ services:
       retries: 5
       start_period: 20s
     restart: unless-stopped
-
-  web:
-    image: ghcr.io/${GITHUB_REPO:?GITHUB_REPO is required}/web:latest
-    ports:
-      - "3000:3000"
-    environment:
-      NODE_ENV: production
-      API_URL: http://http-backend:8000
-    depends_on:
-      http-backend:
-        condition: service_healthy
-      ws-backend:
-        condition: service_healthy
-    restart: unless-stopped
