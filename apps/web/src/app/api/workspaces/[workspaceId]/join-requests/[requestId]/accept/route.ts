@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.API_URL ||
-  "http://127.0.0.1:8000";
+import { API_BASE_URL } from "@/lib/api/config";
 
 export async function POST(
   _req: NextRequest,
@@ -22,7 +18,7 @@ export async function POST(
   }
 
   const res = await fetch(
-    `${API_URL}/api/v1/workspaces/${workspaceId}/join-requests/${requestId}/accept`,
+    `${API_BASE_URL}/api/v1/workspaces/${workspaceId}/join-requests/${requestId}/accept`,
     {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },

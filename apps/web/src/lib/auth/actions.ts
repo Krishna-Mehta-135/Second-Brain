@@ -1,12 +1,7 @@
 "use server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-
-// Note: API_URL should be defined in .env as a server-side only variable
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.API_URL ||
-  "http://127.0.0.1:8000";
+import { API_BASE_URL } from "@/lib/api/config";
 
 export type ActionState = {
   error?: string;
@@ -17,7 +12,7 @@ export async function loginAction(prevState: ActionState, formData: FormData) {
   const password = formData.get("password") as string;
 
   try {
-    const res = await fetch(`${API_URL}/api/v1/auth/login`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ credential: email, password }),
@@ -61,7 +56,7 @@ export async function registerAction(
   }
 
   try {
-    const res = await fetch(`${API_URL}/api/v1/auth/register`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, email, password }),

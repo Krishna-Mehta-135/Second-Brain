@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.API_URL ||
-  "http://127.0.0.1:8000";
+import { API_BASE_URL } from "@/lib/api/config";
 
 interface BackendTag {
   name: string;
@@ -51,7 +47,7 @@ export async function GET(req: NextRequest) {
   const workspaceId = req.nextUrl.searchParams.get("workspaceId");
 
   try {
-    const url = new URL(`${API_URL}/api/v1/content`);
+    const url = new URL(`${API_BASE_URL}/api/v1/content`);
     if (workspaceId) {
       url.searchParams.set("workspaceId", workspaceId);
     }
@@ -103,7 +99,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    const res = await fetch(`${API_URL}/api/v1/content`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/content`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

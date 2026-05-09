@@ -117,7 +117,7 @@ services:
       - '3000:3000'
     environment:
       # Server-side only (not baked into client bundle)
-      API_URL: http://http-backend:8000
+      API_BASE_URL: http://http-backend:8000
       NODE_ENV: production
     depends_on:
       http-backend:

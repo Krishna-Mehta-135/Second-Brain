@@ -1,10 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse, NextRequest } from "next/server";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.API_URL ||
-  "http://127.0.0.1:8000";
+import { API_BASE_URL } from "@/lib/api/config";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -15,7 +11,7 @@ export async function GET() {
   }
 
   try {
-    const res = await fetch(`${API_URL}/api/v1/auth/me`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -44,7 +40,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const res = await fetch(`${API_URL}/api/v1/auth/me`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

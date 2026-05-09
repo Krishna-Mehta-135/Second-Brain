@@ -8,7 +8,12 @@
     "build": {
       "dependsOn": ["^build", "generate"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "env": ["NODE_ENV", "API_URL"],
+      "env": [
+        "NODE_ENV",
+        "API_URL",
+        "API_BASE_URL",
+        "NEXT_PUBLIC_API_BASE_URL"
+      ],
       "outputs": [".next/**", "!.next/cache/**", "dist/**", "**/*.tsbuildinfo"]
     },
     "dev": {
@@ -21,7 +26,7 @@
     },
     "lint": {
       "dependsOn": ["^lint"],
-      "env": ["API_URL"],
+      "env": ["API_URL", "API_BASE_URL", "NEXT_PUBLIC_API_BASE_URL"],
       "outputs": []
     },
     "db:push": {

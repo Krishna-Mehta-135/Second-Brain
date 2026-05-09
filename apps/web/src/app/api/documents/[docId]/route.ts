@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.API_URL ||
-  "http://127.0.0.1:8000";
+import { API_BASE_URL } from "@/lib/api/config";
 
 export async function PATCH(
   req: NextRequest,
@@ -18,7 +14,7 @@ export async function PATCH(
   }
 
   try {
-    const res = await fetch(`${API_URL}/api/v1/content/${docId}`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/content/${docId}`, {
       method: "PATCH",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -58,7 +54,7 @@ export async function DELETE(
   }
 
   try {
-    const res = await fetch(`${API_URL}/api/v1/content/${docId}`, {
+    const res = await fetch(`${API_BASE_URL}/api/v1/content/${docId}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,

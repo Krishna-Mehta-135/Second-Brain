@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
+import { API_BASE_URL } from "@/lib/api/config";
 
 import { TooltipProvider, Toaster } from "@repo/ui";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
@@ -28,11 +29,6 @@ export const metadata: Metadata = {
   },
 };
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.API_URL ||
-  "http://127.0.0.1:8000";
-
 async function getInitialAuthState(): Promise<AuthState> {
   const cookieStore = await cookies();
   const token = cookieStore.get("session")?.value;
@@ -44,8 +40,8 @@ async function getInitialAuthState(): Promise<AuthState> {
   }
 
   try {
-    console.log(`[Layout] Validating session with backend: ${API_URL}`);
-    const res = await fetch(`${API_URL}/api/v1/auth/me`, {
+    console.log(`[Layout] Validating session with backend: ${API_BASE_URL}`);
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

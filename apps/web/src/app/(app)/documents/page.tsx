@@ -2,11 +2,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { FileText, Plus } from "lucide-react";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.API_URL ||
-  "http://127.0.0.1:8000";
+import { API_BASE_URL } from "@/lib/api/config";
 
 interface DocumentContent {
   id: string;
@@ -24,7 +20,7 @@ export default async function DocumentsPage() {
 
   let res;
   try {
-    res = await fetch(`${API_URL}/api/v1/content`, {
+    res = await fetch(`${API_BASE_URL}/api/v1/content`, {
       headers: { Authorization: `Bearer ${session}` },
       cache: "no-store",
     });
