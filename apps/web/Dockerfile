@@ -51,7 +51,6 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME=0.0.0.0
-ENV NODE_EXTRA_CA_CERTS=/app/certs/server-ca.pem
 
 # standalone/ contains its own node_modules and server.js at the ROOT.
 # In a monorepo the structure is:
@@ -65,8 +64,6 @@ COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 # Public assets must sit at apps/web/public relative to server.js
 COPY --from=builder /app/apps/web/public       ./apps/web/public
-
-COPY certs/server-ca.pem /app/certs/server-ca.pem
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs && \
