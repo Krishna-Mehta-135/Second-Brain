@@ -126,12 +126,17 @@ jobs:
             set -euo pipefail
             cd /opt/knowdex
 
+            # Write the CA cert from secret
+            mkdir -p certs
+            echo "${{ secrets.DB_SSL_CA_CERT }}" > certs/server-ca.pem
+
             # Force the repo name to lowercase for the pull
             LOWER_REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
 
             # Write runtime env from GitHub Secrets so no secrets live in the image
             cat > .env <<EOF
             NODE_ENV=production
+            NODE_EXTRA_CA_CERTS=/opt/knowdex/certs/server-ca.pem
             # Use the lowercase version here!
             GITHUB_REPO=$LOWER_REPO
             DATABASE_URL=${{ secrets.DATABASE_URL }}

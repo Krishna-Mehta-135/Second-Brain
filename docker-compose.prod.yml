@@ -15,6 +15,7 @@ services:
       - "8000:8000"
     environment:
       NODE_ENV: production
+      NODE_EXTRA_CA_CERTS: ${NODE_EXTRA_CA_CERTS:-}
       HTTP_PORT: 8000
       DATABASE_URL: ${DATABASE_URL:?required}
       REDIS_URL: ${REDIS_URL:-}
@@ -27,6 +28,8 @@ services:
       GH_CLIENT_ID: ${GH_CLIENT_ID:-}
       GH_CLIENT_SECRET: ${GH_CLIENT_SECRET:-}
       GH_CALLBACK_URL: ${GH_CALLBACK_URL:-}
+    volumes:
+      - ./certs:/opt/knowdex/certs:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 10s
@@ -41,6 +44,7 @@ services:
       - "8080:8080"
     environment:
       NODE_ENV: production
+      NODE_EXTRA_CA_CERTS: ${NODE_EXTRA_CA_CERTS:-}
       WS_PORT: 8080
       DATABASE_URL: ${DATABASE_URL:?required}
       # REDIS_HOST takes priority over REDIS_URL inside the app (keyPrefix: "knowdex:")
@@ -49,6 +53,8 @@ services:
       REDIS_URL: ${REDIS_URL:-}
       JWT_SECRET: ${JWT_SECRET:?required}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - ./certs:/opt/knowdex/certs:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 10s
