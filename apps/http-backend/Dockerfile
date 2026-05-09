@@ -50,6 +50,7 @@ RUN apk add --no-cache libc6-compat curl
 
 WORKDIR /app
 ENV NODE_ENV=production
+ENV NODE_EXTRA_CA_CERTS=/app/certs/server-ca.pem
 
 # Pruned production node_modules (no devDeps, no workspace links)
 COPY --from=pruner /pruned/http-backend/node_modules ./node_modules
@@ -57,6 +58,8 @@ COPY --from=pruner /pruned/http-backend/node_modules ./node_modules
 COPY --from=builder /app/apps/http-backend/dist       ./dist
 # package.json needed by some Node.js module resolution paths
 COPY --from=builder /app/apps/http-backend/package.json ./
+
+COPY certs/server-ca.pem /app/certs/server-ca.pem
 
 # Non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \

@@ -46,10 +46,13 @@ RUN apk add --no-cache libc6-compat curl
 
 WORKDIR /app
 ENV NODE_ENV=production
+ENV NODE_EXTRA_CA_CERTS=/app/certs/server-ca.pem
 
 COPY --from=pruner  /pruned/ws-backend/node_modules   ./node_modules
 COPY --from=builder /app/apps/ws-backend/dist          ./dist
 COPY --from=builder /app/apps/ws-backend/package.json  ./
+
+COPY certs/server-ca.pem /app/certs/server-ca.pem
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 appuser && \
