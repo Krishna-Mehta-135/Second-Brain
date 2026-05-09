@@ -12,7 +12,9 @@ export async function loginAction(prevState: ActionState, formData: FormData) {
   const password = formData.get("password") as string;
 
   try {
-    const res = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+    const target = `${API_BASE_URL}/api/v1/auth/login`;
+    console.log(`[loginAction] POST ${target}`);
+    const res = await fetch(target, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ credential: email, password }),
@@ -35,7 +37,7 @@ export async function loginAction(prevState: ActionState, formData: FormData) {
       path: "/",
     });
   } catch (err) {
-    console.error("Login Error:", err);
+    console.error(`[loginAction] fetch to ${API_BASE_URL} failed:`, err);
     return { error: "Connection failed" };
   }
 
@@ -56,7 +58,9 @@ export async function registerAction(
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
+    const target = `${API_BASE_URL}/api/v1/auth/register`;
+    console.log(`[registerAction] POST ${target}`);
+    const res = await fetch(target, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, email, password }),
@@ -94,7 +98,7 @@ export async function registerAction(
       path: "/",
     });
   } catch (err) {
-    console.error("Register Error:", err);
+    console.error(`[registerAction] fetch to ${API_BASE_URL} failed:`, err);
     return { error: "Connection failed" };
   }
 
