@@ -54,7 +54,8 @@ const googleCallback = asyncHandler(async (req, res) => {
   const code = req.query.code as string;
 
   if (!code) {
-    return res.redirect(`${FRONTEND_URL}/login?error=Google auth failed`);
+    const redirectUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    return res.redirect(`${redirectUrl}/login?error=Google auth failed`);
   }
 
   const tokenUrl = "https://oauth2.googleapis.com/token";
@@ -102,7 +103,8 @@ const googleCallback = asyncHandler(async (req, res) => {
   console.log(
     `[OAuth] Successful login for ${user.email}. Redirecting to frontend...`,
   );
-  res.redirect(`${FRONTEND_URL}/api/auth/callback?token=${token}`);
+  const redirectUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  res.redirect(`${redirectUrl}/api/auth/callback?token=${token}`);
 });
 
 const githubAuth = asyncHandler(async (req, res) => {
@@ -137,8 +139,9 @@ const githubCallback = asyncHandler(async (req, res) => {
 
   if (!code) {
     console.error("[OAuth] GitHub callback missing code");
+    const redirectUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     return res.redirect(
-      `${FRONTEND_URL}/login?error=GitHub auth failed: No code received`,
+      `${redirectUrl}/login?error=GitHub auth failed: No code received`,
     );
   }
 
@@ -157,8 +160,9 @@ const githubCallback = asyncHandler(async (req, res) => {
 
   if (!tokenData.access_token) {
     console.error("[OAuth] Failed to get access token from GitHub:", tokenData);
+    const redirectUrl = process.env.FRONTEND_URL || "http://localhost:3000";
     return res.redirect(
-      `${FRONTEND_URL}/login?error=GitHub token exchange failed`,
+      `${redirectUrl}/login?error=GitHub token exchange failed`,
     );
   }
 
@@ -206,7 +210,8 @@ const githubCallback = asyncHandler(async (req, res) => {
   console.log(
     `[OAuth] Successful login for ${user.email}. Redirecting to frontend...`,
   );
-  res.redirect(`${FRONTEND_URL}/api/auth/callback?token=${token}`);
+  const redirectUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  res.redirect(`${redirectUrl}/api/auth/callback?token=${token}`);
 });
 
 const registerUser = asyncHandler(async (req, res) => {
