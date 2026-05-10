@@ -56,8 +56,8 @@ export function MiniPhysicsGraph() {
     if (documents.length === 0) return;
 
     const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
-    const baseR = isMobile ? 4.5 : 2.8;
-    const activeR = isMobile ? 6.5 : 4.2;
+    const baseR = isMobile ? 8 : 2.8;
+    const activeR = isMobile ? 12 : 4.2;
 
     const newNodes: GraphNode[] = documents.slice(0, 10).map((doc, i) => ({
       id: i,
@@ -212,18 +212,31 @@ export function MiniPhysicsGraph() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [edges]);
 
-  const toSVG = useCallback((e: React.MouseEvent) => {
+  const toSVG = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!svgRef.current) return { x: 0, y: 0 };
     const r = svgRef.current.getBoundingClientRect();
+
+    let clientX = 0,
+      clientY = 0;
+    if ("touches" in e) {
+      const touch = e.touches[0];
+      if (!touch) return { x: 0, y: 0 };
+      clientX = touch.clientX;
+      clientY = touch.clientY;
+    } else {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    }
+
     return {
-      x: ((e.clientX - r.left) / r.width) * MG_W,
-      y: ((e.clientY - r.top) / r.height) * MG_H,
+      x: ((clientX - r.left) / r.width) * MG_W,
+      y: ((clientY - r.top) / r.height) * MG_H,
     };
   }, []);
 
   const onDown = useCallback(
-    (e: React.MouseEvent, idx: number) => {
-      e.preventDefault();
+    (e: React.MouseEvent | React.TouchEvent, idx: number) => {
+      if (e.cancelable) e.preventDefault();
       e.stopPropagation();
       const { x, y } = toSVG(e);
       velRef.current[idx] = { vx: 0, vy: 0 };
@@ -239,7 +252,7 @@ export function MiniPhysicsGraph() {
   );
 
   const onMove = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent | React.TouchEvent) => {
       if (!dragRef.current) return;
       const { x, y } = toSVG(e);
       const { idx, ox, oy } = dragRef.current;
@@ -285,10 +298,12 @@ export function MiniPhysicsGraph() {
     <svg
       ref={svgRef}
       viewBox={`0 0 ${MG_W} ${MG_H}`}
-      className="w-full h-full overflow-visible select-none"
+      className="w-full h-full overflow-visible select-none touch-none"
       onMouseMove={onMove}
       onMouseUp={onUp}
       onMouseLeave={onUp}
+      onTouchMove={onMove}
+      onTouchEnd={onUp}
       style={{ cursor: dragRef.current ? "grabbing" : "default" }}
     >
       <defs>
@@ -357,6 +372,7 @@ export function MiniPhysicsGraph() {
           <g
             key={i}
             onMouseDown={(e) => onDown(e, i)}
+            onTouchStart={(e) => onDown(e, i)}
             onMouseEnter={() => !dragRef.current && setFocusIdx(i)}
             onMouseLeave={() => !dragRef.current && setFocusIdx(null)}
             style={{ cursor: isDrag ? "grabbing" : "pointer" }}

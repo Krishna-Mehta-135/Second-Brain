@@ -184,8 +184,13 @@ export const joinWorkspaceBySlug = asyncHandler(async (req, res) => {
     return res.status(400).json(new ApiResponse(400, null, "Invalid body"));
   }
 
-  const ws = await prisma.workspace.findUnique({
-    where: { slug: parsed.data.slug },
+  const ws = await prisma.workspace.findFirst({
+    where: {
+      slug: {
+        equals: parsed.data.slug,
+        mode: "insensitive",
+      },
+    },
   });
   if (!ws) {
     return res.status(404).json(new ApiResponse(404, null, "Not found"));

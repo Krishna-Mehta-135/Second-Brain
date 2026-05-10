@@ -78,11 +78,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [starredOpen, setStarredOpen] = useState(false);
   const [sidebarTagFilter, setSidebarTagFilter] = useState<string | null>(null);
   const [pendingJoinCount, setPendingJoinCount] = useState(0);
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
 
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
+
+  // Close sidebar on mobile when pathname changes (switching docs, etc.)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [pathname]);
+
+  const handleCreateNew = useCallback(async () => {
+    if (isCreatingNew) return;
+    setIsCreatingNew(true);
+    try {
+      router.push("/documents/new");
+    } finally {
+      // We don't set it back to false immediately to prevent rapid double-clicks
+      // during the navigation phase. The new page will handle its own state.
+      setTimeout(() => setIsCreatingNew(false), 2000);
+    }
+  }, [isCreatingNew, router]);
 
   /** Parent layout often omits nested `docId` from useParams — derive from URL */
   const currentDocId = useMemo(() => {
@@ -328,131 +348,144 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div
         className={`flex flex-col border-r border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] transition-all duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 ${sidebarOpen ? "w-[85vw] max-w-[320px] md:w-64" : "w-0 opacity-0 overflow-hidden max-md:-translate-x-full"}`}
       >
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <div className="h-12 flex items-center justify-between px-4 border-b border-[hsl(var(--sb-border))] shrink-0 hover:bg-[hsl(var(--sb-bg-hover))] cursor-pointer transition-colors group">
-              <div className="flex items-center gap-2 font-medium text-sm min-w-0">
-                <LogoMark size={20} />
-                <span className="truncate">
-                  {activeWorkspace?.name ?? `${userName}'s Brain`}
-                </span>
+        <div className="flex items-center border-b border-[hsl(var(--sb-border))] shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="h-12 flex-1 flex items-center justify-between px-4 hover:bg-[hsl(var(--sb-bg-hover))] cursor-pointer transition-colors group min-w-0">
+                <div className="flex items-center gap-2 font-medium text-sm min-w-0">
+                  <LogoMark size={20} />
+                  <span className="truncate">
+                    {activeWorkspace?.name ?? `${userName}'s Brain`}
+                  </span>
+                </div>
+                <ChevronDown
+                  size={14}
+                  className="text-[hsl(var(--sb-text-faint))] group-hover:text-white transition-colors shrink-0"
+                />
               </div>
-              <ChevronDown
-                size={14}
-                className="text-[hsl(var(--sb-text-faint))] group-hover:text-white transition-colors shrink-0"
-              />
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="w-64 max-h-[min(70vh,420px)] overflow-y-auto p-2 bg-[#050505]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl ml-2 mt-1"
-          >
-            <div className="px-2 py-2 text-[10px] font-bold text-white/40 uppercase tracking-widest">
-              Switch workspace
-            </div>
-            {memberships.length === 0 ? (
-              <div className="px-2 py-2 text-xs text-white/45">
-                No workspaces loaded.
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="w-64 max-h-[min(70vh,420px)] overflow-y-auto p-2 bg-[#050505]/95 backdrop-blur-xl border-white/10 text-white shadow-2xl rounded-xl ml-2 mt-1"
+            >
+              <div className="px-2 py-2 text-[10px] font-bold text-white/40 uppercase tracking-widest">
+                Switch workspace
               </div>
-            ) : (
-              memberships.map((m) => (
-                <DropdownMenuItem
-                  key={m.workspace.id}
-                  onClick={() => setActiveWorkspaceId(m.workspace.id)}
-                  className={`flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10 ${
-                    m.workspace.id === activeWorkspaceId
-                      ? "bg-[hsl(var(--sb-accent))]/12"
-                      : ""
-                  }`}
-                >
-                  {m.workspace.isPublic ? (
-                    <Globe
-                      size={16}
-                      className="text-[hsl(var(--sb-accent))] shrink-0 mt-0.5"
-                    />
-                  ) : (
-                    <Lock size={16} className="text-white/45 shrink-0 mt-0.5" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">
-                      {m.workspace.name}
-                    </div>
-                    <div className="text-[10px] text-white/40 truncate font-mono">
-                      {m.workspace.slug}
-                    </div>
-                    <div className="text-[10px] text-white/35 mt-0.5 leading-snug">
-                      {m.workspace.isPublic
-                        ? "Public — join with slug (Workspace settings to change)"
-                        : "Private — join requests need owner approval"}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <div className="text-[10px] px-2 py-0.5 rounded-md font-semibold text-white/90 bg-[hsl(var(--sb-bg))] border border-[hsl(var(--sb-border))]">
-                      {m.workspace.isPublic ? "Public" : "Private"}
-                    </div>
-                    {m.workspace.id === activeWorkspaceId ? (
-                      <Check
-                        size={14}
+              {memberships.length === 0 ? (
+                <div className="px-2 py-2 text-xs text-white/45">
+                  No workspaces loaded.
+                </div>
+              ) : (
+                memberships.map((m) => (
+                  <DropdownMenuItem
+                    key={m.workspace.id}
+                    onClick={() => setActiveWorkspaceId(m.workspace.id)}
+                    className={`flex items-start gap-2 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10 ${
+                      m.workspace.id === activeWorkspaceId
+                        ? "bg-[hsl(var(--sb-accent))]/12"
+                        : ""
+                    }`}
+                  >
+                    {m.workspace.isPublic ? (
+                      <Globe
+                        size={16}
                         className="text-[hsl(var(--sb-accent))] shrink-0 mt-0.5"
                       />
-                    ) : null}
-                  </div>
-                </DropdownMenuItem>
-              ))
-            )}
-            <DropdownMenuSeparator className="my-1.5 bg-white/10" />
-            <DropdownMenuItem
-              onClick={() => {
-                void (async () => {
-                  const d = await createDocument({ folderPath: "Untitled" });
-                  if (d?.id) router.push(`/documents/${d.id}`);
-                })();
-              }}
-              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
-            >
-              <Folder size={15} className="text-[hsl(var(--sb-accent))]/90" />
-              <span className="font-medium text-sm">
-                Create Untitled subfolder
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => router.push("/workspace/join")}
-              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
-            >
-              <Users size={15} className="text-[hsl(var(--sb-accent))]" />
-              <span className="font-medium text-sm">Join workspace</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => router.push("/settings/workspace")}
-              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
-            >
-              <Settings size={15} className="text-white/60" />
-              <span className="font-medium text-sm flex-1 flex items-center justify-between gap-2">
-                Workspace settings
-                {pendingJoinCount > 0 ? (
-                  <span className="text-[10px] font-bold bg-[hsl(var(--sb-accent))] text-white px-1.5 py-0.5 rounded-md">
-                    {pendingJoinCount}
-                  </span>
-                ) : null}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={handleShare}
-              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
-            >
-              <Network size={15} className="text-white/60" />
-              <span className="font-medium text-sm">Share this page</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className="my-1.5 bg-white/10" />
-            <DropdownMenuItem
-              onClick={() => router.push("/settings/workspace")}
-              className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
-            >
-              <Plus size={15} className="text-white/60" />
-              <span className="font-medium text-sm">Create workspace…</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                    ) : (
+                      <Lock
+                        size={16}
+                        className="text-white/45 shrink-0 mt-0.5"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {m.workspace.name}
+                      </div>
+                      <div className="text-[10px] text-white/40 truncate font-mono">
+                        {m.workspace.slug}
+                      </div>
+                      <div className="text-[10px] text-white/35 mt-0.5 leading-snug">
+                        {m.workspace.isPublic
+                          ? "Public — join with slug (Workspace settings to change)"
+                          : "Private — join requests need owner approval"}
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <div className="text-[10px] px-2 py-0.5 rounded-md font-semibold text-white/90 bg-[hsl(var(--sb-bg))] border border-[hsl(var(--sb-border))]">
+                        {m.workspace.isPublic ? "Public" : "Private"}
+                      </div>
+                      {m.workspace.id === activeWorkspaceId ? (
+                        <Check
+                          size={14}
+                          className="text-[hsl(var(--sb-accent))] shrink-0 mt-0.5"
+                        />
+                      ) : null}
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
+              <DropdownMenuSeparator className="my-1.5 bg-white/10" />
+              <DropdownMenuItem
+                onClick={() => {
+                  void (async () => {
+                    const d = await createDocument({ folderPath: "Untitled" });
+                    if (d?.id) router.push(`/documents/${d.id}`);
+                  })();
+                }}
+                className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
+              >
+                <Folder size={15} className="text-[hsl(var(--sb-accent))]/90" />
+                <span className="font-medium text-sm">
+                  Create Untitled subfolder
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push("/workspace/join")}
+                className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
+              >
+                <Users size={15} className="text-[hsl(var(--sb-accent))]" />
+                <span className="font-medium text-sm">Join workspace</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => router.push("/settings/workspace")}
+                className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
+              >
+                <Settings size={15} className="text-white/60" />
+                <span className="font-medium text-sm flex-1 flex items-center justify-between gap-2">
+                  Workspace settings
+                  {pendingJoinCount > 0 ? (
+                    <span className="text-[10px] font-bold bg-[hsl(var(--sb-accent))] text-white px-1.5 py-0.5 rounded-md">
+                      {pendingJoinCount}
+                    </span>
+                  ) : null}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleShare}
+                className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
+              >
+                <Network size={15} className="text-white/60" />
+                <span className="font-medium text-sm">Share this page</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1.5 bg-white/10" />
+              <DropdownMenuItem
+                onClick={() => router.push("/settings/workspace")}
+                className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
+              >
+                <Plus size={15} className="text-white/60" />
+                <span className="font-medium text-sm">Create workspace…</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            onClick={handleCreateNew}
+            disabled={isCreatingNew}
+            className="h-12 w-12 flex items-center justify-center border-l border-[hsl(var(--sb-border))] hover:bg-[hsl(var(--sb-bg-hover))] text-[hsl(var(--sb-text-faint))] hover:text-white transition-colors shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="New Note (⌘N)"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
 
         <div className="p-3 shrink-0">
           <button
@@ -547,7 +580,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarItem
               icon={<Network size={14} />}
               label="Graph View"
-              onClick={() => router.push("/graph")}
+              onClick={() => {
+                router.push("/graph");
+                if (window.innerWidth < 768) setSidebarOpen(false);
+              }}
             />
           </div>
 
@@ -555,8 +591,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="px-3 py-1 text-xs font-semibold tracking-wider text-[hsl(var(--sb-text-faint))] uppercase flex items-center justify-between group">
               WORKSPACE
               <button
-                onClick={() => router.push("/documents/new")}
-                className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity cursor-pointer"
+                onClick={handleCreateNew}
+                disabled={isCreatingNew}
+                className="opacity-0 group-hover:opacity-100 hover:text-white transition-opacity cursor-pointer disabled:opacity-30"
               >
                 <Plus size={12} />
               </button>
@@ -651,42 +688,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Topbar */}
-        <header className="h-12 border-b border-[hsl(var(--sb-border))] flex items-center justify-between px-2 sm:px-4 shrink-0 bg-[hsl(var(--sb-bg))/0.8] backdrop-blur-md sticky top-0 z-10">
+        <header className="h-12 md:h-12 max-md:h-16 border-b border-[hsl(var(--sb-border))] flex items-center justify-between px-2 sm:px-4 shrink-0 bg-[hsl(var(--sb-bg))/0.8] backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center gap-1 sm:gap-2 min-w-0">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-1.5 rounded text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-colors shrink-0"
             >
               {sidebarOpen ? (
-                <ChevronLeft size={16} />
+                <ChevronLeft size={18} />
               ) : (
-                <ChevronRight size={16} />
+                <ChevronRight size={18} />
               )}
             </button>
             <div className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm text-[hsl(var(--sb-text-muted))] min-w-0">
               <span className="hidden xs:inline shrink-0">Workspace</span>
               <ChevronRight
-                size={12}
+                size={14}
                 className="text-[hsl(var(--sb-text-faint))] hidden xs:inline shrink-0"
               />
-              <span className="text-white font-medium truncate max-w-[120px] sm:max-w-[200px]">
+              <span className="text-white font-medium truncate max-w-[120px] sm:max-w-[200px] text-sm md:text-base">
                 {resolvedTitle || "Untitled"}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <div className="hidden xs:flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-[hsl(var(--sb-text-faint))] mr-0.5 sm:mr-1">
-              <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-green-500 inline-block" />
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
               Online
             </div>
             <button
               onClick={handleShare}
-              className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-colors"
+              className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-colors min-h-[32px] md:min-h-0"
             >
               {shareCopied ? (
-                <Check size={13} className="text-green-400" />
+                <Check size={18} className="text-green-400 md:scale-125" />
               ) : (
-                <Copy size={13} />
+                <Copy size={16} />
               )}
               <span className="hidden sm:inline">
                 {shareCopied ? "Copied!" : "Share"}
@@ -697,18 +734,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 if (typeof window !== "undefined" && window.innerWidth < 768) {
                   // On small screens, open dedicated graph page instead of right panel
                   router.push("/graph");
+                  setSidebarOpen(false);
                   return;
                 }
                 setRightPanelOpen(!rightPanelOpen);
               }}
-              className={`p-1.5 rounded transition-colors flex ${rightPanelOpen ? "text-white bg-[hsl(var(--sb-bg-hover))]" : "text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))]"}`}
+              className={`p-2 rounded transition-colors flex ${rightPanelOpen ? "text-white bg-[hsl(var(--sb-bg-hover))]" : "text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))]"}`}
             >
-              <Network size={16} />
+              <Network size={18} />
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="p-1.5 rounded text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-colors">
-                  <MoreHorizontal size={16} />
+                <button className="p-2 rounded text-[hsl(var(--sb-text-faint))] hover:text-white hover:bg-[hsl(var(--sb-bg-hover))] transition-colors">
+                  <MoreHorizontal size={18} />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -720,7 +758,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
                 {currentDocId && (
                   <DropdownMenuItem
-                    onClick={() => toggleStar(currentDocId)}
+                    onClick={() => {
+                      toggleStar(currentDocId);
+                      if (window.innerWidth < 768) setSidebarOpen(false);
+                    }}
                     className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
                   >
                     {isStarred(currentDocId) ? (
@@ -739,14 +780,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem
-                  onClick={() => alert("Archive feature coming soon!")}
+                  onClick={() => {
+                    alert("Archive feature coming soon!");
+                    if (window.innerWidth < 768) setSidebarOpen(false);
+                  }}
                   className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
                 >
                   <Archive size={15} className="text-white/60" />
                   <span className="font-medium text-sm">Archive Note</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => exportMarkdown()}
+                  onClick={() => {
+                    exportMarkdown();
+                    if (window.innerWidth < 768) setSidebarOpen(false);
+                  }}
                   className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
                 >
                   <Download size={15} className="text-white/60" />
@@ -755,7 +802,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-1.5 bg-white/10" />
-                <DropdownMenuItem className="flex items-center gap-3 px-2 py-2 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 cursor-pointer focus:bg-red-500/10 focus:text-red-300">
+                <DropdownMenuItem
+                  className="flex items-center gap-3 px-2 py-2 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 cursor-pointer focus:bg-red-500/10 focus:text-red-300"
+                  onSelect={() => {
+                    if (window.innerWidth < 768) setSidebarOpen(false);
+                  }}
+                >
                   <Trash2 size={15} />
                   <span className="font-medium text-sm">Move to Trash</span>
                 </DropdownMenuItem>
@@ -826,9 +878,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <button
                 onClick={() => {
                   setCmdPaletteOpen(false);
-                  router.push("/documents/new");
+                  handleCreateNew();
                 }}
-                className="w-full text-left px-3 py-3 rounded-lg bg-[hsl(var(--sb-accent))/0.1] text-[hsl(var(--sb-accent))] flex items-center justify-between cursor-pointer border border-[hsl(var(--sb-accent))/0.2] hover:bg-[hsl(var(--sb-accent))/0.2] transition-colors"
+                disabled={isCreatingNew}
+                className="w-full text-left px-3 py-3 rounded-lg bg-[hsl(var(--sb-accent))/0.1] text-[hsl(var(--sb-accent))] flex items-center justify-between cursor-pointer border border-[hsl(var(--sb-accent))/0.2] hover:bg-[hsl(var(--sb-accent))/0.2] transition-colors disabled:opacity-30"
               >
                 <div className="flex items-center gap-3 font-medium">
                   <Plus size={16} /> Create new note

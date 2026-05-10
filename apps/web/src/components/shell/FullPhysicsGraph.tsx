@@ -59,11 +59,11 @@ export function FullPhysicsGraph() {
     if (documents.length === 0) return;
 
     const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
-    const baseR = isMobile ? 6 : 3.5;
-    const activeR = isMobile ? 10 : 6;
+    const baseR = isMobile ? 10 : 3.5;
+    const activeR = isMobile ? 16 : 6;
 
     // Initial zoom for mobile
-    if (isMobile && zoom === 1) setZoom(1.2);
+    if (isMobile && zoom === 1) setZoom(0.85); // Slightly zoomed out to see more nodes on small screens
 
     const newNodes: GraphNode[] = documents.slice(0, 15).map((doc, i) => ({
       id: i,
@@ -306,8 +306,11 @@ export function FullPhysicsGraph() {
           y: Math.max(15, Math.min(MG_H - 15, y - oy)),
         };
       } else if (isPanningRef.current) {
-        const dx = clientX - lastMousePosRef.current.x;
-        const dy = clientY - lastMousePosRef.current.y;
+        const isMobile =
+          typeof window !== "undefined" && window.innerWidth < 640;
+        const multiplier = isMobile ? 1.6 : 1;
+        const dx = (clientX - lastMousePosRef.current.x) * multiplier;
+        const dy = (clientY - lastMousePosRef.current.y) * multiplier;
         setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
       }
       lastMousePosRef.current = { x: clientX, y: clientY };

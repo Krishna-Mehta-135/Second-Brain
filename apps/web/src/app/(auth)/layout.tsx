@@ -76,8 +76,19 @@ export default function AuthLayout({
       </div>
 
       {/* ── Right — Form ── */}
-      <div className="w-full lg:w-[46%] flex items-center justify-center px-10 py-8 relative overflow-hidden">
-        <div className="w-full max-w-sm relative z-10">{children}</div>
+      <div className="w-full lg:w-[46%] flex flex-col items-center justify-center px-10 py-8 relative overflow-hidden">
+        {/* Mobile Logo */}
+        <Link
+          href="/"
+          className="lg:hidden absolute top-10 flex items-center gap-2 text-white font-semibold text-lg tracking-tight hover:opacity-80 transition-opacity z-20"
+        >
+          <LogoMark size={26} />
+          Knowdex
+        </Link>
+
+        <div className="w-full max-w-sm relative z-10 mt-12 lg:mt-0">
+          {children}
+        </div>
       </div>
     </div>
   );

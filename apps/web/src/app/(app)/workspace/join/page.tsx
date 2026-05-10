@@ -1,18 +1,24 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, type FormEvent, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Users } from "lucide-react";
 import { useWorkspace } from "@/lib/workspaces/WorkspaceProvider";
 
-export default function JoinWorkspacePage() {
+function JoinWorkspaceContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { refresh } = useWorkspace();
   const [slug, setSlug] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const s = searchParams.get("slug");
+    if (s) setSlug(s);
+  }, [searchParams]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -129,5 +135,21 @@ export default function JoinWorkspacePage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function JoinWorkspacePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-pulse text-[hsl(var(--sb-text-faint))]">
+            Loading...
+          </div>
+        </div>
+      }
+    >
+      <JoinWorkspaceContent />
+    </Suspense>
   );
 }

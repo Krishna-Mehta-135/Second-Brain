@@ -109,7 +109,10 @@ export function computeSidebarDragHit(
     const r = row.getBoundingClientRect();
     const relY = (clientY - r.top) / r.height;
 
-    if (relY > 0.15 && relY < 0.85) {
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    const nestLimit = isMobile ? 0.08 : 0.15;
+
+    if (relY > nestLimit && relY < 1 - nestLimit) {
       // Middle band → nest
       const title = row.getAttribute("data-doc-title") ?? "";
       const folder = row.getAttribute("data-doc-folder") ?? "";
@@ -177,8 +180,6 @@ export function computeSidebarDragHit(
 
 // ── Hook ───────────────────────────────────────────────────────────────────
 
-const MOVE_PX = 3;
-
 interface UseSidebarObsidianDragOpts {
   workspaceId: string | null | undefined;
   getDocuments: () => Document[];
@@ -190,6 +191,9 @@ interface UseSidebarObsidianDragOpts {
 }
 
 export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const MOVE_PX = isMobile ? 8 : 3;
+
   // Always-fresh opts reference — never stale inside event handlers.
   const optsRef = useRef(opts);
   optsRef.current = opts;
@@ -551,7 +555,7 @@ export function useSidebarObsidianDrag(opts: UseSidebarObsidianDragOpts) {
         blockClickRef.current = null;
       }
     };
-  }, []); // ← empty deps: registered once, reads everything through stable refs
+  }, [MOVE_PX]); // ← empty deps: registered once, reads everything through stable refs
 
   const beginGripDrag = useCallback(
     (

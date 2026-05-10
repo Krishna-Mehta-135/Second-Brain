@@ -96,7 +96,16 @@ function PhysicsGraph() {
       const N = pos.length;
       const dragIdx = dragRef.current?.idx ?? -1;
 
+      // Ambient motion — a very subtle chaotic force to keep it alive
+      const time = Date.now() / 1500;
+
       for (let i = 0; i < N; i++) {
+        // Add ambient drift
+        if (i !== dragIdx) {
+          vel[i]!.vx += Math.sin(time + i) * 0.006;
+          vel[i]!.vy += Math.cos(time * 0.8 + i) * 0.006;
+        }
+
         for (let j = i + 1; j < N; j++) {
           const dx = pos[j]!.x - pos[i]!.x;
           const dy = pos[j]!.y - pos[i]!.y;
@@ -150,36 +159,56 @@ function PhysicsGraph() {
     return () => cancelAnimationFrame(rafRef.current);
   }, [H, W]);
 
-  const toSVG = (e: React.MouseEvent) => {
-    const r = svgRef.current!.getBoundingClientRect();
-    return {
-      x: ((e.clientX - r.left) / r.width) * W,
-      y: ((e.clientY - r.top) / r.height) * H,
-    };
-  };
+  const toSVG = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (!svgRef.current) return { x: 0, y: 0 };
+      const r = svgRef.current.getBoundingClientRect();
+      let clientX = 0;
+      let clientY = 0;
 
-  const onNodeDown = (e: React.MouseEvent, idx: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const { x, y } = toSVG(e);
-    dragRef.current = {
-      idx,
-      ox: x - posRef.current[idx]!.x,
-      oy: y - posRef.current[idx]!.y,
-    };
-    velRef.current[idx]!.vx = 0;
-    velRef.current[idx]!.vy = 0;
-  };
+      if ("touches" in e) {
+        clientX = e.touches[0]!.clientX;
+        clientY = e.touches[0]!.clientY;
+      } else {
+        clientX = (e as React.MouseEvent).clientX;
+        clientY = (e as React.MouseEvent).clientY;
+      }
 
-  const onMove = useCallback((e: React.MouseEvent) => {
-    if (!dragRef.current) return;
-    const { x, y } = toSVG(e);
-    const { idx, ox, oy } = dragRef.current;
-    posRef.current[idx] = {
-      x: Math.max(12, Math.min(W - 12, x - ox)),
-      y: Math.max(12, Math.min(H - 12, y - oy)),
-    };
-  }, []);
+      return {
+        x: ((clientX - r.left) / r.width) * W,
+        y: ((clientY - r.top) / r.height) * H,
+      };
+    },
+    [W, H],
+  );
+
+  const onDown = useCallback(
+    (e: React.MouseEvent | React.TouchEvent, idx: number) => {
+      if (e.cancelable) e.preventDefault();
+      const { x, y } = toSVG(e);
+      dragRef.current = {
+        idx,
+        ox: x - posRef.current[idx]!.x,
+        oy: y - posRef.current[idx]!.y,
+      };
+      velRef.current[idx]!.vx = 0;
+      velRef.current[idx]!.vy = 0;
+    },
+    [toSVG],
+  );
+
+  const onMove = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (!dragRef.current) return;
+      const { x, y } = toSVG(e);
+      const { idx, ox, oy } = dragRef.current;
+      posRef.current[idx] = {
+        x: Math.max(12, Math.min(W - 12, x - ox)),
+        y: Math.max(12, Math.min(H - 12, y - oy)),
+      };
+    },
+    [toSVG],
+  );
 
   const onUp = useCallback(() => {
     dragRef.current = null;
@@ -189,7 +218,7 @@ function PhysicsGraph() {
 
   return (
     <div className="relative w-full">
-      <div className="aspect-square rounded-2xl bg-[hsl(var(--sb-bg))] border border-[hsl(var(--sb-border))] sb-glow relative select-none overflow-hidden">
+      <div className="aspect-square rounded-2xl bg-[hsl(var(--sb-bg))] border border-[hsl(var(--sb-border))] sb-glow relative select-none overflow-hidden touch-none">
         <style
           dangerouslySetInnerHTML={{
             __html: `
@@ -206,6 +235,8 @@ function PhysicsGraph() {
           onMouseMove={onMove}
           onMouseUp={onUp}
           onMouseLeave={onUp}
+          onTouchMove={onMove}
+          onTouchEnd={onUp}
           style={{ cursor: dragRef.current ? "grabbing" : "default" }}
         >
           {EDGES.map((e) => (
@@ -226,7 +257,8 @@ function PhysicsGraph() {
             return (
               <g
                 key={n.id}
-                onMouseDown={(e) => onNodeDown(e, n.id)}
+                onMouseDown={(e) => onDown(e, n.id)}
+                onTouchStart={(e) => onDown(e, n.id)}
                 style={{ cursor: isDrag ? "grabbing" : "grab" }}
               >
                 <circle
@@ -294,8 +326,8 @@ function PhysicsGraph() {
 
 function BiLinksVisual() {
   return (
-    <div className="flex flex-col sm:flex-row items-center sm:items-stretch justify-center w-full h-full p-4 sm:p-5 gap-4 sm:gap-3 overflow-hidden">
-      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[100px] sm:min-h-0">
+    <div className="flex flex-col sm:flex-row items-center sm:items-stretch justify-center w-full h-full p-4 sm:p-5 gap-6 sm:gap-3 overflow-hidden">
+      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[110px] sm:min-h-0 transition-transform hover:scale-[1.02]">
         <div>
           <div className="flex items-center gap-1.5 mb-2 sm:mb-3">
             <div className="w-2.5 h-2.5 rounded-sm bg-indigo-500/30 border border-indigo-500/50 shrink-0" />
@@ -303,12 +335,12 @@ function BiLinksVisual() {
               product-spec-v2.md
             </span>
           </div>
-          <div className="text-zinc-400 text-[9px] sm:text-[9.5px] leading-[1.6] sm:leading-[1.7]">
+          <div className="text-zinc-400 text-[10px] sm:text-[9.5px] leading-[1.6] sm:leading-[1.7]">
             The graph engine will power the{" "}
-            <span className="text-indigo-400 bg-indigo-500/12 rounded px-0.5 border-b border-indigo-400/30 cursor-pointer hover:bg-indigo-500/20 transition-colors">
+            <span className="text-indigo-400 bg-indigo-500/12 rounded px-0.5 border-b border-indigo-400/30 cursor-pointer">
               [[Graph Engine]]
             </span>{" "}
-            module, using force-directed layout.
+            module.
           </div>
         </div>
         <div className="flex items-center gap-1 mt-2 text-zinc-700 text-[8.5px]">
@@ -317,31 +349,35 @@ function BiLinksVisual() {
         </div>
       </div>
 
-      <div className="flex flex-row sm:flex-col items-center justify-center gap-2 sm:gap-1.5 shrink-0 sm:w-12">
-        <div className="flex items-center gap-0.5 text-indigo-400">
-          <div
-            className="h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-indigo-500 w-6 sm:w-auto"
-            style={{ width: "28px" }}
-          />
-          <svg width="6" height="8" viewBox="0 0 6 8">
-            <polygon points="0,0 6,4 0,8" fill="#6366f1" />
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-1.5 shrink-0 sm:w-12 py-2">
+        <div className="flex flex-col sm:flex-row items-center gap-0.5 text-indigo-400">
+          <div className="w-px h-6 sm:h-px sm:w-8 bg-indigo-500/40" />
+          <svg
+            width="6"
+            height="8"
+            viewBox="0 0 6 8"
+            className="rotate-90 sm:rotate-0"
+          >
+            <polygon points="0,0 6,4 0,8" fill="currentColor" />
           </svg>
         </div>
-        <div className="text-[7.5px] text-zinc-700 tracking-wide uppercase font-bold">
-          bi-dir
+        <div className="text-[7.5px] text-zinc-600 tracking-tighter uppercase font-bold px-1 py-1 sm:py-0">
+          SYNC
         </div>
-        <div className="flex items-center gap-0.5 text-violet-400 rotate-180 sm:rotate-0">
-          <svg width="6" height="8" viewBox="0 0 6 8">
-            <polygon points="0,0 6,4 0,8" fill="#8b5cf6" />
+        <div className="flex flex-col-reverse sm:flex-row items-center gap-0.5 text-violet-400">
+          <svg
+            width="6"
+            height="8"
+            viewBox="0 0 6 8"
+            className="-rotate-90 sm:rotate-180"
+          >
+            <polygon points="0,0 6,4 0,8" fill="currentColor" />
           </svg>
-          <div
-            className="h-px bg-gradient-to-r from-transparent via-violet-500/50 to-violet-500 w-6 sm:w-auto"
-            style={{ width: "28px" }}
-          />
+          <div className="w-px h-6 sm:h-px sm:w-8 bg-violet-500/40" />
         </div>
       </div>
 
-      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[100px] sm:min-h-0">
+      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[110px] sm:min-h-0 transition-transform hover:scale-[1.02]">
         <div>
           <div className="flex items-center gap-1.5 mb-2 sm:mb-3">
             <div className="w-2.5 h-2.5 rounded-sm bg-violet-500/30 border border-violet-500/50 shrink-0" />
@@ -349,16 +385,16 @@ function BiLinksVisual() {
               graph-engine.md
             </span>
           </div>
-          <div className="text-zinc-400 text-[9px] sm:text-[9.5px] leading-[1.6] sm:leading-[1.7]">
+          <div className="text-zinc-400 text-[10px] sm:text-[9.5px] leading-[1.6] sm:leading-[1.7]">
             Force-directed layout using WebGL canvas. Handles 10k+ nodes with
             smooth 60fps…
           </div>
         </div>
-        <div className="mt-2.5 border-t border-white/[0.04] pt-2.5 hidden sm:block">
-          <div className="text-[7.5px] text-zinc-600 uppercase tracking-widest mb-2">
+        <div className="mt-2.5 border-t border-white/[0.04] pt-2.5">
+          <div className="text-[7.5px] text-zinc-600 uppercase tracking-widest mb-1.5">
             Backlinks
           </div>
-          <div className="flex items-center gap-1.5 text-[9px] text-violet-400">
+          <div className="flex items-center gap-1.5 text-[9px] text-violet-400/90">
             <span className="text-zinc-700 text-[10px]">↩</span>
             <span>product-spec-v2</span>
           </div>
@@ -634,7 +670,7 @@ function EmbeddedApp() {
   return (
     <div
       className="flex h-full overflow-hidden rounded-b-2xl"
-      style={{ height: 540 }}
+      style={{ height: "clamp(300px, 60vh, 540px)" }}
     >
       {/* Sidebar */}
       <div
@@ -1108,7 +1144,7 @@ export default function HomePage() {
             observerRef.current?.unobserve(e.target);
           }
         }),
-      { threshold: 0.1 },
+      { threshold: 0.05 }, // Lower threshold for mobile reliability
     );
     document
       .querySelectorAll(".sb-observe")
@@ -1139,7 +1175,7 @@ export default function HomePage() {
 
         {/* Desktop Nav */}
         <div className="hidden md:flex gap-6">
-          {["Features", "Method", "Pricing"].map((item) => (
+          {["Features", "Product", "Community"].map((item) => (
             <a
               key={item}
               href={item === "Features" ? "#features" : "/register"}
@@ -1207,7 +1243,7 @@ export default function HomePage() {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="absolute top-full left-0 right-0 bg-[hsl(var(--sb-bg))] border-b border-[hsl(var(--sb-border))] p-6 flex flex-col gap-6 md:hidden animate-in slide-in-from-top duration-300">
-            {["Features", "Method", "Pricing"].map((item) => (
+            {["Features", "Product", "Community"].map((item) => (
               <a
                 key={item}
                 href={item === "Features" ? "#features" : "/register"}
@@ -1237,22 +1273,22 @@ export default function HomePage() {
       </nav>
 
       <section className="relative pt-32 md:pt-40 pb-16 md:pb-24 px-6 md:px-8 flex flex-col items-center text-center z-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 text-[10px] md:text-xs font-medium text-indigo-300 mb-8 border border-indigo-500/20">
+        <div className="sb-observe inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 text-[10px] md:text-xs font-medium text-indigo-300 mb-8 border border-indigo-500/20">
           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
           Knowdex 2.0 — Now in Beta
         </div>
-        <h1 className="font-semibold tracking-tighter leading-[1.06] mb-7 max-w-4xl text-[3.5rem] md:text-[5rem]">
+        <h1 className="sb-observe font-semibold tracking-tighter leading-[1.06] mb-7 max-w-4xl text-[3.5rem] md:text-[5rem]">
           <span className="text-white">Your knowledge,</span>
           <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-500 sb-animate-drift italic">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-500 sb-animate-drift italic pr-2">
             finally connected.
           </span>
         </h1>
-        <p className="text-lg md:text-xl text-zinc-400 leading-relaxed mb-10 max-w-2xl px-4 md:px-0">
+        <p className="sb-observe text-lg md:text-xl text-zinc-400 leading-relaxed mb-10 max-w-2xl px-4 md:px-0">
           Not a note-taking app. A thinking environment built for researchers,
           engineers, and anyone who builds with ideas.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 mb-10 w-full sm:w-auto px-6 sm:px-0">
+        <div className="sb-observe flex flex-col sm:flex-row gap-4 mb-10 w-full sm:w-auto px-6 sm:px-0">
           <Link
             href="/register"
             className="bg-white text-zinc-900 px-8 py-3.5 rounded-xl font-bold hover:bg-zinc-50 transition-all shadow-[0_4px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 flex items-center justify-center gap-2 group"
@@ -1267,7 +1303,7 @@ export default function HomePage() {
             <Command size={16} /> View demo
           </button>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-5 md:gap-8 text-[11px] md:text-sm text-zinc-600">
+        <div className="sb-observe flex flex-wrap items-center justify-center gap-y-4 gap-x-5 md:gap-8 text-[11px] md:text-sm text-zinc-600">
           <div className="flex items-center gap-1">
             {[...Array(5)].map((_, i) => (
               <Star
@@ -1370,7 +1406,8 @@ export default function HomePage() {
             ).map((f, i) => (
               <div
                 key={f.title}
-                className={`flex flex-col ${f.reverse ? "lg:flex-row-reverse" : "lg:flex-row"} items-center gap-10 lg:gap-20 py-16 lg:py-20 border-t ${i === 2 ? "border-b " : ""}border-white/[0.05]`}
+                className={`sb-observe flex flex-col ${f.reverse ? "lg:flex-row-reverse" : "lg:flex-row"} items-center gap-10 lg:gap-20 py-16 lg:py-20 border-t ${i === 2 ? "border-b " : ""}border-white/[0.05]`}
+                style={{ animationDelay: `${i * 0.1}s` }}
               >
                 <div className="w-full lg:flex-1">
                   <div
@@ -1588,7 +1625,7 @@ export default function HomePage() {
           />
         </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto text-center px-6">
+        <div className="sb-observe relative z-10 max-w-4xl mx-auto text-center px-6">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-300 text-[10px] md:text-xs font-medium mb-10">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" />

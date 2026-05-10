@@ -737,7 +737,10 @@ export function SidebarDocumentList({
                 <DropdownMenuTrigger asChild>
                   <button
                     aria-label="Document actions"
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[hsl(var(--sb-bg-hover))] rounded-md transition-all text-[hsl(var(--sb-text-faint))] hover:text-white focus:opacity-100 shrink-0 mr-1.5"
+                    className={`
+                      p-1 hover:bg-[hsl(var(--sb-bg-hover))] rounded-md transition-all text-[hsl(var(--sb-text-faint))] hover:text-white focus:opacity-100 shrink-0 mr-1.5
+                      ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
+                    `}
                   >
                     <MoreVertical className="h-3.5 w-3.5" />
                   </button>

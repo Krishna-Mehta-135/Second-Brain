@@ -312,15 +312,15 @@ html {
 ul[data-type="taskList"] {
   list-style: none;
   padding: 0;
+  margin: 1rem 0;
 }
 
 ul[data-type="taskList"] li[data-type="taskItem"] {
-  /* Force horizontal layout so checkbox sits to the left of content */
   display: flex;
   flex-direction: row;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0.5rem 0;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
 }
 
 ul[data-type="taskList"] li[data-type="taskItem"] > label {
@@ -328,21 +328,36 @@ ul[data-type="taskList"] li[data-type="taskItem"] > label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-right: 0.5rem;
-  margin-top: 0;
   user-select: none;
+  margin-top: 0.2rem;
 }
 
 ul[data-type="taskList"] li[data-type="taskItem"] > div {
   flex: 1 1 auto;
-  margin: 0;
+  margin: 0 !important;
+}
+
+ul[data-type="taskList"] li[data-type="taskItem"] > div > p {
+  margin: 0 !important;
 }
 
 /* Ensure checkbox input itself aligns and doesn't stack above text */
 ul[data-type="taskList"] li[data-type="taskItem"] input[type="checkbox"] {
   margin: 0;
-  margin-right: 0.5rem;
-  align-self: center;
+  cursor: pointer;
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: hsl(var(--sb-accent));
+}
+
+@media (min-width: 768px) {
+  ul[data-type="taskList"] li[data-type="taskItem"] input[type="checkbox"] {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+  ul[data-type="taskList"] li[data-type="taskItem"] {
+    gap: 0.85rem;
+  }
 }
 /* Cross-browser alignment & glow fixes for Safari & Chromium */
 @supports (-webkit-backdrop-filter: blur(1px)) {
