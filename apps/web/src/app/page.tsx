@@ -294,77 +294,73 @@ function PhysicsGraph() {
 
 function BiLinksVisual() {
   return (
-    <div className="flex items-stretch justify-center w-full h-full p-5 gap-3">
-      <div className="flex-1 bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between">
+    <div className="flex flex-col sm:flex-row items-center sm:items-stretch justify-center w-full h-full p-4 sm:p-5 gap-4 sm:gap-3 overflow-hidden">
+      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[100px] sm:min-h-0">
         <div>
-          <div className="flex items-center gap-1.5 mb-3">
+          <div className="flex items-center gap-1.5 mb-2 sm:mb-3">
             <div className="w-2.5 h-2.5 rounded-sm bg-indigo-500/30 border border-indigo-500/50 shrink-0" />
             <span className="text-zinc-500 font-mono text-[9px] truncate">
               product-spec-v2.md
             </span>
           </div>
-          <div className="text-zinc-400 text-[9.5px] leading-[1.7]">
+          <div className="text-zinc-400 text-[9px] sm:text-[9.5px] leading-[1.6] sm:leading-[1.7]">
             The graph engine will power the{" "}
             <span className="text-indigo-400 bg-indigo-500/12 rounded px-0.5 border-b border-indigo-400/30 cursor-pointer hover:bg-indigo-500/20 transition-colors">
               [[Graph Engine]]
             </span>{" "}
-            module, using force-directed layout for&nbsp;10k+ nodes.
+            module, using force-directed layout.
           </div>
         </div>
-        <div className="flex items-center gap-1 mt-2.5 text-zinc-700 text-[8.5px]">
+        <div className="flex items-center gap-1 mt-2 text-zinc-700 text-[8.5px]">
           <Link2 size={7} />
           <span>1 outgoing link</span>
         </div>
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-1.5 shrink-0 w-12">
+      <div className="flex flex-row sm:flex-col items-center justify-center gap-2 sm:gap-1.5 shrink-0 sm:w-12">
         <div className="flex items-center gap-0.5 text-indigo-400">
           <div
-            className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-500/50 to-indigo-500"
+            className="h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-indigo-500 w-6 sm:w-auto"
             style={{ width: "28px" }}
           />
           <svg width="6" height="8" viewBox="0 0 6 8">
             <polygon points="0,0 6,4 0,8" fill="#6366f1" />
           </svg>
         </div>
-        <div className="text-[7.5px] text-zinc-700 tracking-wide uppercase">
+        <div className="text-[7.5px] text-zinc-700 tracking-wide uppercase font-bold">
           bi-dir
         </div>
-        <div className="flex items-center gap-0.5 text-violet-400">
+        <div className="flex items-center gap-0.5 text-violet-400 rotate-180 sm:rotate-0">
           <svg width="6" height="8" viewBox="0 0 6 8">
-            <polygon points="6,0 0,4 6,8" fill="#8b5cf6" />
+            <polygon points="0,0 6,4 0,8" fill="#8b5cf6" />
           </svg>
           <div
-            className="h-px flex-1 bg-gradient-to-l from-transparent via-violet-500/50 to-violet-500"
+            className="h-px bg-gradient-to-r from-transparent via-violet-500/50 to-violet-500 w-6 sm:w-auto"
             style={{ width: "28px" }}
           />
         </div>
       </div>
 
-      <div className="flex-1 bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between">
+      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[100px] sm:min-h-0">
         <div>
-          <div className="flex items-center gap-1.5 mb-3">
+          <div className="flex items-center gap-1.5 mb-2 sm:mb-3">
             <div className="w-2.5 h-2.5 rounded-sm bg-violet-500/30 border border-violet-500/50 shrink-0" />
             <span className="text-zinc-500 font-mono text-[9px] truncate">
               graph-engine.md
             </span>
           </div>
-          <div className="text-zinc-400 text-[9.5px] leading-[1.7]">
+          <div className="text-zinc-400 text-[9px] sm:text-[9.5px] leading-[1.6] sm:leading-[1.7]">
             Force-directed layout using WebGL canvas. Handles 10k+ nodes with
             smooth 60fps…
           </div>
         </div>
-        <div className="mt-2.5 border-t border-white/[0.04] pt-2.5">
+        <div className="mt-2.5 border-t border-white/[0.04] pt-2.5 hidden sm:block">
           <div className="text-[7.5px] text-zinc-600 uppercase tracking-widest mb-2">
             Backlinks
           </div>
-          <div className="flex items-center gap-1.5 text-[9px] text-violet-400 mb-1">
+          <div className="flex items-center gap-1.5 text-[9px] text-violet-400">
             <span className="text-zinc-700 text-[10px]">↩</span>
             <span>product-spec-v2</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-[9px] text-violet-400/50">
-            <span className="text-zinc-700 text-[10px]">↩</span>
-            <span>q3-roadmap</span>
           </div>
         </div>
       </div>
@@ -1099,6 +1095,7 @@ function EmbeddedApp() {
 }
 
 export default function HomePage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const graphSectionRef = useRef<HTMLDivElement>(null);
 
@@ -1128,10 +1125,10 @@ export default function HomePage() {
           backgroundSize: "200px 200px",
         }}
       />
-      <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-indigo-600 blur-[180px] opacity-[0.09] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/4" />
-      <div className="absolute top-1/2 left-0 w-[500px] h-[500px] bg-violet-600 blur-[140px] opacity-[0.06] rounded-full pointer-events-none -translate-x-1/2" />
+      <div className="absolute top-0 right-0 w-[300px] md:w-[700px] h-[300px] md:h-[700px] bg-indigo-600 blur-[120px] md:blur-[180px] opacity-[0.09] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/4" />
+      <div className="absolute top-1/2 left-0 w-[250px] md:w-[500px] h-[250px] md:h-[500px] bg-violet-600 blur-[100px] md:blur-[140px] opacity-[0.06] rounded-full pointer-events-none -translate-x-1/2" />
 
-      <nav className="fixed top-0 left-0 right-0 z-50 sb-glass flex items-center justify-between px-8 py-4">
+      <nav className="fixed top-0 left-0 right-0 z-50 sb-glass flex items-center justify-between px-6 md:px-8 py-4">
         <Link
           href="/"
           className="flex items-center gap-2 text-white font-medium text-lg tracking-tight hover:opacity-80 transition-opacity"
@@ -1139,7 +1136,9 @@ export default function HomePage() {
           <LogoMark size={26} />
           Knowdex
         </Link>
-        <div className="flex gap-6">
+
+        {/* Desktop Nav */}
+        <div className="hidden md:flex gap-6">
           {["Features", "Method", "Pricing"].map((item) => (
             <a
               key={item}
@@ -1151,7 +1150,8 @@ export default function HomePage() {
             </a>
           ))}
         </div>
-        <div className="flex gap-4 items-center">
+
+        <div className="hidden md:flex gap-4 items-center">
           <Link
             href="/login"
             className="relative text-zinc-400 hover:text-white transition-colors text-sm font-medium group"
@@ -1166,31 +1166,96 @@ export default function HomePage() {
             Get Started
           </Link>
         </div>
+
+        {/* Mobile Nav Toggle */}
+        <button
+          className="md:hidden text-zinc-400 hover:text-white transition-colors"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? (
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          ) : (
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          )}
+        </button>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="absolute top-full left-0 right-0 bg-[hsl(var(--sb-bg))] border-b border-[hsl(var(--sb-border))] p-6 flex flex-col gap-6 md:hidden animate-in slide-in-from-top duration-300">
+            {["Features", "Method", "Pricing"].map((item) => (
+              <a
+                key={item}
+                href={item === "Features" ? "#features" : "/register"}
+                className="text-lg text-zinc-300 hover:text-white font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {item}
+              </a>
+            ))}
+            <div className="h-px bg-white/[0.05]" />
+            <Link
+              href="/login"
+              className="text-lg text-zinc-300 hover:text-white font-medium"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Log in
+            </Link>
+            <Link
+              href="/register"
+              className="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold text-center"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Get Started
+            </Link>
+          </div>
+        )}
       </nav>
 
-      <section className="relative pt-36 pb-20 px-8 flex flex-col items-center text-center z-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 text-xs font-medium text-indigo-300 mb-8 border border-indigo-500/20">
+      <section className="relative pt-32 md:pt-40 pb-16 md:pb-24 px-6 md:px-8 flex flex-col items-center text-center z-10">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 text-[10px] md:text-xs font-medium text-indigo-300 mb-8 border border-indigo-500/20">
           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
           Knowdex 2.0 — Now in Beta
         </div>
-        <h1
-          className="font-semibold tracking-tighter leading-[1.06] mb-7 max-w-4xl"
-          style={{ fontSize: "5rem" }}
-        >
+        <h1 className="font-semibold tracking-tighter leading-[1.06] mb-7 max-w-4xl text-[3.5rem] md:text-[5rem]">
           <span className="text-white">Your knowledge,</span>
           <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-500 sb-animate-drift italic">
             finally connected.
           </span>
         </h1>
-        <p className="text-xl text-zinc-400 leading-relaxed mb-10 max-w-2xl">
+        <p className="text-lg md:text-xl text-zinc-400 leading-relaxed mb-10 max-w-2xl px-4 md:px-0">
           Not a note-taking app. A thinking environment built for researchers,
           engineers, and anyone who builds with ideas.
         </p>
-        <div className="flex gap-3 mb-10">
+        <div className="flex flex-col sm:flex-row gap-4 mb-10 w-full sm:w-auto px-6 sm:px-0">
           <Link
             href="/register"
-            className="bg-white text-zinc-900 px-8 py-3.5 rounded-xl font-bold hover:bg-zinc-50 transition-all shadow-[0_4px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 flex items-center gap-2 group"
+            className="bg-white text-zinc-900 px-8 py-3.5 rounded-xl font-bold hover:bg-zinc-50 transition-all shadow-[0_4px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 flex items-center justify-center gap-2 group"
           >
             <span>Start for free</span>
             <ArrowRight
@@ -1198,11 +1263,11 @@ export default function HomePage() {
               className="group-hover:translate-x-1 transition-transform"
             />
           </Link>
-          <button className="border border-zinc-700 text-zinc-400 px-7 py-3.5 rounded-xl font-medium hover:border-zinc-500 hover:text-white transition-all flex items-center gap-2">
+          <button className="border border-zinc-700 text-zinc-400 px-7 py-3.5 rounded-xl font-medium hover:border-zinc-500 hover:text-white transition-all flex items-center justify-center gap-2">
             <Command size={16} /> View demo
           </button>
         </div>
-        <div className="flex items-center gap-5 text-sm text-zinc-600">
+        <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-5 md:gap-8 text-[11px] md:text-sm text-zinc-600">
           <div className="flex items-center gap-1">
             {[...Array(5)].map((_, i) => (
               <Star
@@ -1213,19 +1278,18 @@ export default function HomePage() {
             ))}
             <span className="ml-1.5">4.9 / 5</span>
           </div>
-          <span className="text-zinc-800">·</span>
+          <span className="hidden sm:inline text-zinc-800">·</span>
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
             12,000+ researchers
           </span>
-          <span className="text-zinc-800">·</span>
+          <span className="hidden sm:inline text-zinc-800">·</span>
           <span>50M+ notes synced</span>
         </div>
       </section>
-
-      <section className="px-8 pb-10 relative z-10">
+      <section className="px-6 md:px-8 pb-10 relative z-10">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 mb-4 justify-center">
+          <div className="hidden md:flex items-center gap-3 mb-4 justify-center">
             <div className="h-px flex-1 bg-white/[0.04]" />
             <span className="text-[11px] text-zinc-600 font-medium tracking-wide uppercase">
               Live editor — click anywhere to edit
@@ -1233,7 +1297,7 @@ export default function HomePage() {
             <div className="h-px flex-1 bg-white/[0.04]" />
           </div>
           <div
-            className="rounded-2xl overflow-hidden border border-[hsl(var(--sb-border))]"
+            className="hidden md:block rounded-2xl overflow-hidden border border-[hsl(var(--sb-border))]"
             style={{
               boxShadow:
                 "0 40px 100px -20px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04), 0 0 80px -20px rgba(99,102,241,0.2)",
@@ -1253,7 +1317,7 @@ export default function HomePage() {
             </div>
             <EmbeddedApp />
           </div>
-          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[hsl(var(--sb-bg))] to-transparent" />
+          <div className="hidden md:block pointer-events-none absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[hsl(var(--sb-bg))] to-transparent" />
         </div>
       </section>
 
@@ -1306,9 +1370,9 @@ export default function HomePage() {
             ).map((f, i) => (
               <div
                 key={f.title}
-                className={`flex ${f.reverse ? "flex-row-reverse" : "flex-row"} items-center gap-20 py-20 border-t ${i === 2 ? "border-b " : ""}border-white/[0.05]`}
+                className={`flex flex-col ${f.reverse ? "lg:flex-row-reverse" : "lg:flex-row"} items-center gap-10 lg:gap-20 py-16 lg:py-20 border-t ${i === 2 ? "border-b " : ""}border-white/[0.05]`}
               >
-                <div className="flex-1">
+                <div className="w-full lg:flex-1">
                   <div
                     className={`w-10 h-10 rounded-xl ${f.accent === "violet" ? "bg-violet-500/10" : "bg-indigo-500/10"} flex items-center justify-center ${f.accent === "violet" ? "text-violet-400" : "text-indigo-400"} mb-6`}
                   >
@@ -1320,7 +1384,7 @@ export default function HomePage() {
                   <p className="text-zinc-500 leading-relaxed mb-7 text-[1.05rem]">
                     {f.desc}
                   </p>
-                  <div className="flex gap-2 mb-7">
+                  <div className="flex flex-wrap gap-2 mb-7">
                     {f.tags.map((t) => (
                       <span
                         key={t}
@@ -1342,7 +1406,7 @@ export default function HomePage() {
                   </Link>
                 </div>
                 <div
-                  className={`flex-1 rounded-2xl bg-[hsl(var(--sb-bg-panel))] overflow-hidden group/v relative transition-all duration-300 border ${f.accent === "violet" ? "border-violet-500/10 hover:border-violet-500/20 hover:shadow-[0_0_48px_-12px_rgba(139,92,246,0.25)]" : "border-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_48px_-12px_rgba(99,102,241,0.25)]"}`}
+                  className={`w-full lg:flex-1 rounded-2xl bg-[hsl(var(--sb-bg-panel))] overflow-hidden group/v relative transition-all duration-300 border ${f.accent === "violet" ? "border-violet-500/10 hover:border-violet-500/20 hover:shadow-[0_0_48px_-12px_rgba(139,92,246,0.25)]" : "border-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_48px_-12px_rgba(99,102,241,0.25)]"}`}
                   style={{ height: "260px" }}
                 >
                   {f.visual}
@@ -1354,18 +1418,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="py-28 px-8 border-y border-white/[0.04] bg-[hsl(var(--sb-bg-panel))] overflow-hidden relative">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16 relative z-20">
-          <div className="flex-1">
+      <section className="py-20 md:py-28 px-6 md:px-8 border-y border-white/[0.04] bg-[hsl(var(--sb-bg-panel))] overflow-hidden relative">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-16 relative z-20">
+          <div className="w-full lg:flex-1">
             <div className="text-xs font-semibold text-indigo-400 tracking-widest uppercase mb-4">
               Graph View
             </div>
-            <h2 className="text-4xl md:text-5xl font-semibold text-white mb-6 leading-tight">
+            <h2 className="text-3xl md:text-5xl font-semibold text-white mb-6 leading-tight">
               See the shape of
               <br />
               your knowledge.
             </h2>
-            <p className="text-lg text-zinc-500 mb-8 leading-relaxed">
+            <p className="text-base md:text-lg text-zinc-500 mb-8 leading-relaxed">
               The human brain works by association. Knowdex&apos;s interactive
               graph maps your thoughts visually — drag nodes, explore clusters,
               watch physics do the rest.
@@ -1383,7 +1447,7 @@ export default function HomePage() {
               ))}
             </ul>
           </div>
-          <div className="flex-1 w-full relative" ref={graphSectionRef}>
+          <div className="w-full lg:flex-1 relative" ref={graphSectionRef}>
             <PhysicsGraph />
             <div
               className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3.5 py-2 rounded-full border border-white/[0.1] text-xs text-zinc-300 font-medium"
@@ -1524,8 +1588,8 @@ export default function HomePage() {
           />
         </div>
 
-        <div className="relative z-10 max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-300 text-xs font-medium mb-10">
+        <div className="relative z-10 max-w-4xl mx-auto text-center px-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-zinc-300 text-[10px] md:text-xs font-medium mb-10">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-400" />
@@ -1533,10 +1597,7 @@ export default function HomePage() {
             12,000+ people building their knowdex right now
           </div>
 
-          <h2
-            className="font-semibold tracking-tighter leading-[1.06] mb-6"
-            style={{ fontSize: "3.75rem" }}
-          >
+          <h2 className="font-semibold tracking-tighter leading-[1.06] mb-6 text-[2.75rem] md:text-[3.75rem]">
             <span className="text-white">Your knowdex</span>
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-violet-300 to-indigo-400">
@@ -1544,15 +1605,15 @@ export default function HomePage() {
             </span>
           </h2>
 
-          <p className="text-lg text-zinc-500 mb-12 max-w-lg mx-auto leading-relaxed">
+          <p className="text-base md:text-lg text-zinc-500 mb-12 max-w-lg mx-auto leading-relaxed">
             Join the researchers, engineers, and writers who turned scattered
             notes into a connected knowledge system.
           </p>
 
-          <div className="flex items-center justify-center gap-4 mb-16">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 px-6 sm:px-0">
             <Link
               href="/register"
-              className="bg-white text-zinc-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-zinc-50 transition-all hover:-translate-y-0.5 shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)] flex items-center gap-2 group"
+              className="w-full sm:w-auto bg-white text-zinc-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-zinc-50 transition-all hover:-translate-y-0.5 shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2 group"
             >
               <span>Start for free</span>
               <ArrowRight
@@ -1562,13 +1623,13 @@ export default function HomePage() {
             </Link>
             <Link
               href="/login"
-              className="border border-zinc-700 text-zinc-400 px-8 py-4 rounded-xl font-medium text-lg hover:border-zinc-500 hover:text-white transition-all"
+              className="w-full sm:w-auto border border-zinc-700 text-zinc-400 px-8 py-4 rounded-xl font-medium text-lg hover:border-zinc-500 hover:text-white transition-all text-center"
             >
               Sign in
             </Link>
           </div>
 
-          <div className="flex items-center justify-center gap-10">
+          <div className="flex flex-wrap items-center justify-center gap-8 md:gap-10">
             {[
               { value: "50M+", label: "notes synced" },
               { value: "4.9★", label: "avg rating" },
@@ -1576,15 +1637,15 @@ export default function HomePage() {
             ].map((s, i, arr) => (
               <React.Fragment key={s.label}>
                 <div className="flex flex-col items-center">
-                  <span className="text-2xl font-bold text-white tracking-tight">
+                  <span className="text-xl md:text-2xl font-bold text-white tracking-tight">
                     {s.value}
                   </span>
-                  <span className="text-zinc-600 text-xs mt-0.5">
+                  <span className="text-zinc-600 text-[10px] md:text-xs mt-0.5">
                     {s.label}
                   </span>
                 </div>
                 {i < arr.length - 1 && (
-                  <div className="w-px h-8 bg-white/[0.06]" />
+                  <div className="hidden sm:block w-px h-8 bg-white/[0.06]" />
                 )}
               </React.Fragment>
             ))}
@@ -1592,8 +1653,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-white/[0.04] py-10 px-8 text-zinc-600 text-sm">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+      <footer className="border-t border-white/[0.04] py-10 px-6 md:px-8 text-zinc-600 text-sm">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 md:gap-4">
           <div className="flex items-center gap-2 text-white font-medium">
             <LogoMark size={18} />
             Knowdex
@@ -1611,7 +1672,7 @@ export default function HomePage() {
               </a>
             ))}
           </div>
-          <div>© 2025 Knowdex Inc.</div>
+          <div className="text-zinc-700">© 2025 Knowdex Inc.</div>
         </div>
       </footer>
     </div>

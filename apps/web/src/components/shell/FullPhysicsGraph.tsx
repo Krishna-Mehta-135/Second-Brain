@@ -40,6 +40,7 @@ export function FullPhysicsGraph() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const isPanningRef = useRef(false);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
+  const lastPinchDistRef = useRef<number | null>(null);
 
   const posRef = useRef<{ x: number; y: number }[]>([]);
   const velRef = useRef<{ vx: number; vy: number }[]>([]);
@@ -62,7 +63,7 @@ export function FullPhysicsGraph() {
     const activeR = isMobile ? 10 : 6;
 
     // Initial zoom for mobile
-    if (isMobile && zoom === 1) setZoom(1.4);
+    if (isMobile && zoom === 1) setZoom(1.2);
 
     const newNodes: GraphNode[] = documents.slice(0, 15).map((doc, i) => ({
       id: i,
@@ -209,8 +210,8 @@ export function FullPhysicsGraph() {
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const delta = e.deltaY > 0 ? 0.98 : 1.02; // Slower zoom
-      setZoom((z) => Math.max(0.15, Math.min(6, z * delta)));
+      const delta = e.deltaY > 0 ? 0.94 : 1.06; // Slightly faster zoom
+      setZoom((z) => Math.max(0.1, Math.min(8, z * delta)));
     };
 
     el.addEventListener("wheel", handleWheel, { passive: false });
@@ -266,8 +267,11 @@ export function FullPhysicsGraph() {
     (e: React.MouseEvent | React.TouchEvent) => {
       let clientX = 0,
         clientY = 0;
+      let touches: React.TouchList | TouchList | undefined;
+
       if ("touches" in e) {
-        const touch = e.touches[0];
+        touches = e.touches;
+        const touch = touches[0];
         if (touch) {
           clientX = touch.clientX;
           clientY = touch.clientY;
@@ -275,6 +279,23 @@ export function FullPhysicsGraph() {
       } else {
         clientX = (e as React.MouseEvent).clientX;
         clientY = (e as React.MouseEvent).clientY;
+      }
+
+      // Handle Pinch to Zoom
+      if (touches && touches.length === 2) {
+        const t1 = touches[0]!;
+        const t2 = touches[1]!;
+        const dist = Math.sqrt(
+          Math.pow(t2.clientX - t1.clientX, 2) +
+            Math.pow(t2.clientY - t1.clientY, 2),
+        );
+
+        if (lastPinchDistRef.current !== null) {
+          const delta = dist / lastPinchDistRef.current;
+          setZoom((z) => Math.max(0.1, Math.min(8, z * delta)));
+        }
+        lastPinchDistRef.current = dist;
+        return;
       }
 
       if (dragRef.current) {
@@ -304,6 +325,7 @@ export function FullPhysicsGraph() {
     }
     dragRef.current = null;
     isPanningRef.current = false;
+    lastPinchDistRef.current = null;
     setFocusIdx(null);
   }, [nodes, router]);
 
@@ -315,8 +337,16 @@ export function FullPhysicsGraph() {
   }, []);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    if (touch && !dragRef.current) {
+    const touches = e.touches;
+    if (touches.length === 2) {
+      const t1 = touches[0]!;
+      const t2 = touches[1]!;
+      lastPinchDistRef.current = Math.sqrt(
+        Math.pow(t2.clientX - t1.clientX, 2) +
+          Math.pow(t2.clientY - t1.clientY, 2),
+      );
+    } else if (touches.length === 1 && !dragRef.current) {
+      const touch = touches[0]!;
       isPanningRef.current = true;
       lastMousePosRef.current = { x: touch.clientX, y: touch.clientY };
     }
@@ -477,15 +507,53 @@ export function FullPhysicsGraph() {
         </g>
       </svg>
 
-      <div className="absolute bottom-6 right-6 flex flex-col gap-2">
+      <div className="absolute bottom-6 right-6 flex flex-col gap-3">
+        {/* Zoom Controls */}
+        <div className="flex flex-col bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+          <button
+            onClick={() => setZoom((z) => Math.min(8, z * 1.2))}
+            className="p-3 hover:bg-white/10 text-white/70 hover:text-white transition-colors border-b border-white/5"
+            title="Zoom In"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+          <button
+            onClick={() => setZoom((z) => Math.max(0.1, z / 1.2))}
+            className="p-3 hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+            title="Zoom Out"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+
         <div className="bg-black/60 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-2xl text-xs font-medium text-white/90 shadow-2xl flex items-center gap-3">
           <span className="opacity-50">Scale</span>
           <span className="min-w-[3ch] text-right font-mono">
             {Math.round(zoom * 100)}%
           </span>
-        </div>
-        <div className="text-[10px] text-white/40 text-right px-2">
-          Scroll to zoom • Drag to pan
         </div>
       </div>
     </div>

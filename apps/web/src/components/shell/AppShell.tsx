@@ -326,7 +326,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         />
       )}
       <div
-        className={`flex flex-col border-r border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] transition-all duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 ${sidebarOpen ? "w-1/2 max-w-[320px] md:w-64" : "w-0 opacity-0 overflow-hidden max-md:-translate-x-full"}`}
+        className={`flex flex-col border-r border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] transition-all duration-300 ease-in-out max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 ${sidebarOpen ? "w-[85vw] max-w-[320px] md:w-64" : "w-0 opacity-0 overflow-hidden max-md:-translate-x-full"}`}
       >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
