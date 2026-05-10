@@ -251,4 +251,57 @@ const updateContent = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(200, mappedContent, "Content updated successfully"));
 });
 
-export { getAllContent, createNewContent, deleteContent, updateContent };
+const getContentById = asyncHandler(async (req: Request, res: Response) => {
+  const contentId = String(req.params.contentId);
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
+  }
+
+  const content = await prisma.content.findUnique({
+    where: { id: contentId },
+    include: {
+      tags: { select: { id: true, name: true } },
+      workspace: { include: { members: { select: { userId: true } } } },
+    },
+  });
+
+  if (!content) {
+    return res
+      .status(404)
+      .json(new ApiResponse(404, null, "Content not found"));
+  }
+
+  if (content.userId !== userId) {
+    if (content.workspaceId) {
+      const isMember = content.workspace?.members.some(
+        (m: { userId: string }) => m.userId === userId,
+      );
+      if (!isMember) {
+        return res.status(403).json(new ApiResponse(403, null, "Forbidden"));
+      }
+    } else {
+      return res.status(403).json(new ApiResponse(403, null, "Forbidden"));
+    }
+  }
+
+  const mappedContent = {
+    ...content,
+    workspace: undefined,
+    _id: content.id,
+    tags: content.tags.map((t: any) => ({ ...t, _id: t.id })),
+  };
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, mappedContent, "Content fetched successfully"));
+});
+
+export {
+  getAllContent,
+  createNewContent,
+  deleteContent,
+  updateContent,
+  getContentById,
+};
