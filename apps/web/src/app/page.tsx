@@ -326,8 +326,8 @@ function PhysicsGraph() {
 
 function BiLinksVisual() {
   return (
-    <div className="flex flex-col sm:flex-row items-center sm:items-stretch justify-center w-full h-full p-4 sm:p-5 gap-6 sm:gap-3 overflow-hidden">
-      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[110px] sm:min-h-0 transition-transform hover:scale-[1.02]">
+    <div className="flex flex-col sm:flex-row items-center sm:items-stretch justify-center w-full h-full p-6 sm:p-5 gap-4 sm:gap-3 overflow-hidden">
+      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[120px] sm:min-h-0 transition-transform hover:scale-[1.02]">
         <div>
           <div className="flex items-center gap-1.5 mb-2 sm:mb-3">
             <div className="w-2.5 h-2.5 rounded-sm bg-indigo-500/30 border border-indigo-500/50 shrink-0" />
@@ -349,9 +349,10 @@ function BiLinksVisual() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-1.5 shrink-0 sm:w-12 py-2">
+      <div className="flex flex-col items-center justify-center gap-2 sm:gap-1.5 shrink-0 sm:w-12 py-1 sm:py-2">
         <div className="flex flex-col sm:flex-row items-center gap-0.5 text-indigo-400">
-          <div className="w-px h-6 sm:h-px sm:w-8 bg-indigo-500/40" />
+          <div className="hidden sm:block w-px h-4 sm:h-px sm:w-8 bg-indigo-500/40" />
+          <div className="sm:hidden w-px h-6 bg-indigo-500/40" />
           <svg
             width="6"
             height="8"
@@ -361,7 +362,7 @@ function BiLinksVisual() {
             <polygon points="0,0 6,4 0,8" fill="currentColor" />
           </svg>
         </div>
-        <div className="text-[7.5px] text-zinc-600 tracking-tighter uppercase font-bold px-1 py-1 sm:py-0">
+        <div className="text-[7.5px] text-zinc-600 tracking-tighter uppercase font-bold px-1 py-0.5 sm:py-0">
           SYNC
         </div>
         <div className="flex flex-col-reverse sm:flex-row items-center gap-0.5 text-violet-400">
@@ -369,15 +370,16 @@ function BiLinksVisual() {
             width="6"
             height="8"
             viewBox="0 0 6 8"
-            className="-rotate-90 sm:rotate-180"
+            className="rotate-[270deg] sm:rotate-180"
           >
             <polygon points="0,0 6,4 0,8" fill="currentColor" />
           </svg>
-          <div className="w-px h-6 sm:h-px sm:w-8 bg-violet-500/40" />
+          <div className="hidden sm:block w-px h-4 sm:h-px sm:w-8 bg-violet-500/40" />
+          <div className="sm:hidden w-px h-6 bg-violet-500/40" />
         </div>
       </div>
 
-      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[110px] sm:min-h-0 transition-transform hover:scale-[1.02]">
+      <div className="flex-1 w-full sm:w-auto bg-[hsl(240,10%,4.5%)] border border-[hsl(240,10%,11%)] rounded-xl p-3.5 flex flex-col justify-between min-h-[120px] sm:min-h-0 transition-transform hover:scale-[1.02]">
         <div>
           <div className="flex items-center gap-1.5 mb-2 sm:mb-3">
             <div className="w-2.5 h-2.5 rounded-sm bg-violet-500/30 border border-violet-500/50 shrink-0" />
@@ -1285,10 +1287,10 @@ export default function HomePage() {
           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
           Knowdex 2.0 — Now in Beta
         </div>
-        <h1 className="sb-observe font-semibold tracking-tighter leading-[1.06] mb-7 max-w-4xl text-[3.5rem] md:text-[5rem]">
+        <h1 className="sb-observe font-semibold tracking-tighter leading-[1.1] mb-7 max-w-4xl text-[3.5rem] md:text-[5rem]">
           <span className="text-white">Your knowledge,</span>
           <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-500 sb-animate-drift italic pr-2">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-violet-500 sb-animate-drift italic pr-2 pb-4 pt-2">
             finally connected.
           </span>
         </h1>
@@ -1451,7 +1453,7 @@ export default function HomePage() {
                   </Link>
                 </div>
                 <div
-                  className={`w-full lg:flex-1 rounded-2xl bg-[hsl(var(--sb-bg-panel))] overflow-hidden group/v relative transition-all duration-300 border ${f.accent === "violet" ? "border-violet-500/10 hover:border-violet-500/20 hover:shadow-[0_0_48px_-12px_rgba(139,92,246,0.25)]" : "border-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_48px_-12px_rgba(99,102,241,0.25)]"} ${f.title === "Bi-directional Links" ? "h-[360px] sm:h-[400px] lg:h-[300px]" : "h-[260px] sm:h-[320px] lg:h-[300px]"}`}
+                  className={`w-full lg:flex-1 rounded-2xl bg-[hsl(var(--sb-bg-panel))] overflow-hidden group/v relative transition-all duration-300 border ${f.accent === "violet" ? "border-violet-500/10 hover:border-violet-500/20 hover:shadow-[0_0_48px_-12px_rgba(139,92,246,0.25)]" : "border-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_48px_-12px_rgba(99,102,241,0.25)]"} ${f.title === "Bi-directional Links" ? "h-auto py-8 sm:py-0 lg:h-[300px]" : "h-[260px] sm:h-[320px] lg:h-[300px]"}`}
                 >
                   {f.visual}
                   <div className="absolute inset-0 bg-indigo-600/0 group-hover/v:bg-indigo-600/[0.03] transition-colors pointer-events-none" />

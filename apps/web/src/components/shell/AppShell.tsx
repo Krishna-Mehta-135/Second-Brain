@@ -817,7 +817,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Editor Area */}
-        <main className="flex-1 overflow-y-auto relative scroll-smooth custom-scrollbar">
+        <main className="flex-1 relative scroll-smooth custom-scrollbar overflow-hidden flex flex-col">
           {children}
         </main>
       </div>
