@@ -6,7 +6,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { Duplex } from "stream";
 
 import { DocumentManager } from "./document-manager.js";
-import { PrismaRepository, PersistenceService } from "@repo/db";
+import { PrismaRepository, PersistenceService, prisma } from "@repo/db";
 import { GeminiAIService } from "./ai-service.js";
 
 const PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT, 10) : 8080;
@@ -476,6 +476,42 @@ function createUpgradeMiddleware(jwtSecret: string): UpgradeMiddleware {
     const userId = verifyToken(token, jwtSecret);
     if (userId === null) {
       return { success: false, reason: "invalid bearer token", httpCode: 401 };
+    }
+
+    // Permission Check: Verify user has access to this document
+    const content = await prisma.content.findUnique({
+      where: { id: docId },
+      select: {
+        userId: true,
+        workspaceId: true,
+        workspace: {
+          select: {
+            members: {
+              where: { userId },
+              select: { userId: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!content) {
+      return { success: false, reason: "document not found", httpCode: 403 };
+    }
+
+    if (content.userId !== userId) {
+      if (content.workspaceId) {
+        const isMember = (content.workspace?.members?.length ?? 0) > 0;
+        if (!isMember) {
+          return {
+            success: false,
+            reason: "forbidden: not a workspace member",
+            httpCode: 403,
+          };
+        }
+      } else {
+        return { success: false, reason: "forbidden", httpCode: 403 };
+      }
     }
 
     return { success: true, userId, docId };

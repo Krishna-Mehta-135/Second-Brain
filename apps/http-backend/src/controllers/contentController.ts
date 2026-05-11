@@ -298,10 +298,46 @@ const getContentById = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(200, mappedContent, "Content fetched successfully"));
 });
 
+const getContentMetadata = asyncHandler(async (req: Request, res: Response) => {
+  const contentId = String(req.params.contentId);
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json(new ApiResponse(401, null, "Unauthorized"));
+  }
+
+  const content = await prisma.content.findUnique({
+    where: { id: contentId },
+    select: {
+      id: true,
+      title: true,
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          isPublic: true,
+        },
+      },
+    },
+  });
+
+  if (!content) {
+    return res
+      .status(404)
+      .json(new ApiResponse(404, null, "Document not found"));
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, content, "Metadata fetched successfully"));
+});
+
 export {
   getAllContent,
   createNewContent,
   deleteContent,
   updateContent,
   getContentById,
+  getContentMetadata,
 };
