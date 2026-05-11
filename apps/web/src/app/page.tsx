@@ -246,9 +246,9 @@ function PhysicsGraph() {
               y1={pos[e.a]!.y}
               x2={pos[e.b]!.x}
               y2={pos[e.b]!.y}
-              stroke="#7549BB"
+              stroke="#818cf8"
               strokeWidth="1.2"
-              strokeOpacity={e.a === 0 ? 0.55 : 0.2}
+              strokeOpacity={e.a === 0 ? 0.6 : 0.35}
             />
           ))}
           {NODE_META.map((n) => {
@@ -434,9 +434,9 @@ function GraphViewVisual() {
             y1={ns[a]!.y}
             x2={ns[b]!.x}
             y2={ns[b]!.y}
-            stroke="#6366f1"
+            stroke="#818cf8"
             strokeWidth="1.2"
-            strokeOpacity={b < 5 ? 0.5 : 0.18}
+            strokeOpacity={b < 5 ? 0.6 : 0.3}
           />
         ))}
         {ns.map((n, i) => (
@@ -1175,13 +1175,17 @@ export default function HomePage() {
 
         {/* Desktop Nav */}
         <div className="hidden md:flex gap-6">
-          {["Features", "Product", "Community"].map((item) => (
+          {[
+            { label: "Features", href: "#features" },
+            { label: "Graph", href: "#features" },
+            { label: "Commands", href: "#features" },
+          ].map((item) => (
             <a
-              key={item}
-              href={item === "Features" ? "#features" : "/register"}
+              key={item.label}
+              href={item.href}
               className="relative text-zinc-400 hover:text-white transition-colors text-sm font-medium group"
             >
-              {item}
+              {item.label}
               <span className="absolute -bottom-1 left-0 right-0 h-px bg-indigo-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
             </a>
           ))}
@@ -1190,14 +1194,14 @@ export default function HomePage() {
         <div className="hidden md:flex gap-4 items-center">
           <Link
             href="/login"
-            className="relative text-zinc-400 hover:text-white transition-colors text-sm font-medium group"
+            className="relative text-zinc-400 hover:text-white transition-colors text-sm font-medium group active:scale-95"
           >
             Log in
             <span className="absolute -bottom-1 left-0 right-0 h-px bg-indigo-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
           </Link>
           <Link
             href="/register"
-            className="text-sm font-semibold bg-indigo-600 text-white px-4 py-2 rounded-lg border border-indigo-500 hover:bg-indigo-500 hover:shadow-[0_4px_12px_rgba(99,102,241,0.4)] hover:-translate-y-px transition-all"
+            className="text-sm font-semibold bg-indigo-600 text-white px-4 py-2 rounded-lg border border-indigo-500 hover:bg-indigo-500 hover:shadow-[0_4px_12px_rgba(99,102,241,0.4)] hover:-translate-y-px active:scale-[0.97] transition-all"
           >
             Get Started
           </Link>
@@ -1205,7 +1209,7 @@ export default function HomePage() {
 
         {/* Mobile Nav Toggle */}
         <button
-          className="md:hidden text-zinc-400 hover:text-white transition-colors"
+          className="md:hidden text-zinc-400 hover:text-white transition-colors active:scale-90"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? (
@@ -1243,27 +1247,31 @@ export default function HomePage() {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="absolute top-full left-0 right-0 bg-[hsl(var(--sb-bg))] border-b border-[hsl(var(--sb-border))] p-6 flex flex-col gap-6 md:hidden animate-in slide-in-from-top duration-300">
-            {["Features", "Product", "Community"].map((item) => (
+            {[
+              { label: "Features", href: "#features" },
+              { label: "Graph", href: "#features" },
+              { label: "Commands", href: "#features" },
+            ].map((item) => (
               <a
-                key={item}
-                href={item === "Features" ? "#features" : "/register"}
-                className="text-lg text-zinc-300 hover:text-white font-medium"
+                key={item.label}
+                href={item.href}
+                className="text-lg text-zinc-300 hover:text-white font-medium active:translate-x-1 transition-transform"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {item}
+                {item.label}
               </a>
             ))}
             <div className="h-px bg-white/[0.05]" />
             <Link
               href="/login"
-              className="text-lg text-zinc-300 hover:text-white font-medium"
+              className="text-lg text-zinc-300 hover:text-white font-medium active:translate-x-1 transition-transform"
               onClick={() => setMobileMenuOpen(false)}
             >
               Log in
             </Link>
             <Link
               href="/register"
-              className="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold text-center"
+              className="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold text-center active:scale-[0.98] transition-transform"
               onClick={() => setMobileMenuOpen(false)}
             >
               Get Started
@@ -1433,7 +1441,7 @@ export default function HomePage() {
                   </div>
                   <Link
                     href="/register"
-                    className={`inline-flex items-center gap-1.5 text-sm font-medium ${f.accent === "violet" ? "text-violet-400 hover:text-violet-300" : "text-indigo-400 hover:text-indigo-300"} transition-all group`}
+                    className={`inline-flex items-center gap-1.5 text-sm font-medium ${f.accent === "violet" ? "text-violet-400 hover:text-violet-300" : "text-indigo-400 hover:text-indigo-300"} active:translate-x-1 transition-all group`}
                   >
                     Learn more{" "}
                     <ArrowRight
@@ -1443,8 +1451,7 @@ export default function HomePage() {
                   </Link>
                 </div>
                 <div
-                  className={`w-full lg:flex-1 rounded-2xl bg-[hsl(var(--sb-bg-panel))] overflow-hidden group/v relative transition-all duration-300 border ${f.accent === "violet" ? "border-violet-500/10 hover:border-violet-500/20 hover:shadow-[0_0_48px_-12px_rgba(139,92,246,0.25)]" : "border-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_48px_-12px_rgba(99,102,241,0.25)]"}`}
-                  style={{ height: "260px" }}
+                  className={`w-full lg:flex-1 rounded-2xl bg-[hsl(var(--sb-bg-panel))] overflow-hidden group/v relative transition-all duration-300 border ${f.accent === "violet" ? "border-violet-500/10 hover:border-violet-500/20 hover:shadow-[0_0_48px_-12px_rgba(139,92,246,0.25)]" : "border-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_48px_-12px_rgba(99,102,241,0.25)]"} ${f.title === "Bi-directional Links" ? "h-[360px] sm:h-[400px] lg:h-[300px]" : "h-[260px] sm:h-[320px] lg:h-[300px]"}`}
                 >
                   {f.visual}
                   <div className="absolute inset-0 bg-indigo-600/0 group-hover/v:bg-indigo-600/[0.03] transition-colors pointer-events-none" />

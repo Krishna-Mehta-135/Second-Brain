@@ -335,7 +335,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const userName = displayNameRaw || "Guest";
 
   return (
-    <div className="flex h-screen w-full bg-[hsl(var(--sb-bg))] text-[hsl(var(--sb-text))] overflow-hidden font-sans">
+    <div className="flex h-screen h-[100dvh] w-full bg-[hsl(var(--sb-bg))] text-[hsl(var(--sb-text))] overflow-hidden font-sans">
       {/* Left Sidebar */}
       {/* Mobile overlay backdrop for left sidebar — only show on mobile when sidebar is open */}
       {sidebarOpen && (

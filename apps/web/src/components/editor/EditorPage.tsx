@@ -2,7 +2,7 @@
 
 import { useDocument } from "@/lib/sync/useDocument";
 import { useEffect, useRef } from "react";
-import { useEditor, AnyExtension } from "@tiptap/react";
+import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
@@ -79,7 +79,10 @@ function EditorContentWrapper({
   const editor = useEditor(
     {
       extensions: [
-        (StarterKit as AnyExtension).configure({ history: false }),
+        StarterKit.configure({
+          undoRedo: false, // In this version, it's undoRedo instead of history
+          link: false, // Disable built-in link to use our custom configured one
+        }),
         Collaboration.configure({ document: doc, field: "content" }),
         ...(awareness
           ? [
@@ -109,7 +112,7 @@ function EditorContentWrapper({
         Markdown.configure({
           html: false,
           tightLists: true,
-          linkify: true,
+          linkify: true, // Now we can keep this since StarterKit link is disabled
           transformPastedText: true,
         }),
         WikiLink,
@@ -222,7 +225,7 @@ function EditorContentWrapper({
       </div>
 
       {/* Footer info: word count + live collaborators */}
-      <div className="h-8 px-4 flex items-center justify-between border-t border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] shrink-0">
+      <div className="h-8 px-4 flex items-center justify-between border-t border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] shrink-0 sticky bottom-0 z-10">
         <WordCount />
         <CollaboratorBar />
       </div>

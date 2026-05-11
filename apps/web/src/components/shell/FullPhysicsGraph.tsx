@@ -420,10 +420,10 @@ export function FullPhysicsGraph() {
                 y2={pos[e.b]!.y}
                 stroke={
                   isHighlighted
-                    ? "rgba(255,255,255,0.75)"
-                    : "hsl(var(--sb-border-hover))"
+                    ? "rgba(255,255,255,0.85)"
+                    : "rgba(255,255,255,0.2)"
                 }
-                strokeWidth={isHighlighted ? "2" : "1"}
+                strokeWidth={isHighlighted ? "2.5" : "1"}
                 opacity={hasFocus && !isHighlighted ? 0.08 : 1}
                 style={{ transition: "opacity 0.15s, stroke 0.15s" }}
               />

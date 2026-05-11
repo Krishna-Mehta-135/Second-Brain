@@ -338,9 +338,7 @@ export function MiniPhysicsGraph() {
             x2={pos[e.b]!.x}
             y2={pos[e.b]!.y}
             stroke={
-              isHighlighted
-                ? "rgba(255,255,255,0.7)"
-                : "hsl(var(--sb-border-hover))"
+              isHighlighted ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.18)"
             }
             strokeWidth={isHighlighted ? "1.5" : "0.8"}
             opacity={hasFocus && !isHighlighted ? 0.1 : 1}
