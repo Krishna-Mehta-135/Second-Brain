@@ -1257,7 +1257,7 @@ export default function HomePage() {
               <a
                 key={item.label}
                 href={item.href}
-                className="text-lg text-zinc-300 hover:text-white font-medium active:translate-x-1 transition-transform"
+                className="text-lg text-zinc-300 hover:text-white font-medium active:scale-95 transition-all"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {item.label}
@@ -1266,14 +1266,14 @@ export default function HomePage() {
             <div className="h-px bg-white/[0.05]" />
             <Link
               href="/login"
-              className="text-lg text-zinc-300 hover:text-white font-medium active:translate-x-1 transition-transform"
+              className="text-lg text-zinc-300 hover:text-white font-medium active:scale-95 transition-all"
               onClick={() => setMobileMenuOpen(false)}
             >
               Log in
             </Link>
             <Link
               href="/register"
-              className="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold text-center active:scale-[0.98] transition-transform"
+              className="bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold text-center active:scale-[0.98] transition-all"
               onClick={() => setMobileMenuOpen(false)}
             >
               Get Started
@@ -1301,7 +1301,7 @@ export default function HomePage() {
         <div className="sb-observe flex flex-col sm:flex-row gap-4 mb-10 w-full sm:w-auto px-6 sm:px-0">
           <Link
             href="/register"
-            className="bg-white text-zinc-900 px-8 py-3.5 rounded-xl font-bold hover:bg-zinc-50 transition-all shadow-[0_4px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 flex items-center justify-center gap-2 group"
+            className="bg-white text-zinc-900 px-8 py-3.5 rounded-xl font-bold hover:bg-zinc-50 transition-all shadow-[0_4px_0_rgba(255,255,255,0.25),0_8px_20px_rgba(0,0,0,0.4)] hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] active:shadow-none flex items-center justify-center gap-2 group"
           >
             <span>Start for free</span>
             <ArrowRight
@@ -1309,7 +1309,7 @@ export default function HomePage() {
               className="group-hover:translate-x-1 transition-transform"
             />
           </Link>
-          <button className="border border-zinc-700 text-zinc-400 px-7 py-3.5 rounded-xl font-medium hover:border-zinc-500 hover:text-white transition-all flex items-center justify-center gap-2">
+          <button className="border border-zinc-700 text-zinc-400 px-7 py-3.5 rounded-xl font-medium hover:border-zinc-500 hover:text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2">
             <Command size={16} /> View demo
           </button>
         </div>
@@ -1453,7 +1453,7 @@ export default function HomePage() {
                   </Link>
                 </div>
                 <div
-                  className={`w-full lg:flex-1 rounded-2xl bg-[hsl(var(--sb-bg-panel))] overflow-hidden group/v relative transition-all duration-300 border ${f.accent === "violet" ? "border-violet-500/10 hover:border-violet-500/20 hover:shadow-[0_0_48px_-12px_rgba(139,92,246,0.25)]" : "border-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_48px_-12px_rgba(99,102,241,0.25)]"} ${f.title === "Bi-directional Links" ? "h-auto py-8 sm:py-0 lg:h-[300px]" : "h-[260px] sm:h-[320px] lg:h-[300px]"}`}
+                  className={`w-full lg:flex-1 rounded-2xl bg-[hsl(var(--sb-bg-panel))] overflow-hidden group/v relative transition-all duration-300 border ${f.accent === "violet" ? "border-violet-500/10 hover:border-violet-500/20 hover:shadow-[0_0_48px_-12px_rgba(139,92,246,0.25)]" : "border-indigo-500/10 hover:border-indigo-500/20 hover:shadow-[0_0_48px_-12px_rgba(99,102,241,0.25)]"} active:scale-[0.99] ${f.title === "Bi-directional Links" ? "h-auto py-8 sm:py-0 lg:h-[300px]" : "h-[260px] sm:h-[320px] lg:h-[300px]"}`}
                 >
                   {f.visual}
                   <div className="absolute inset-0 bg-indigo-600/0 group-hover/v:bg-indigo-600/[0.03] transition-colors pointer-events-none" />
@@ -1659,7 +1659,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 px-6 sm:px-0">
             <Link
               href="/register"
-              className="w-full sm:w-auto bg-white text-zinc-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-zinc-50 transition-all hover:-translate-y-0.5 shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2 group"
+              className="w-full sm:w-auto bg-white text-zinc-900 px-10 py-4 rounded-xl font-bold text-lg hover:bg-zinc-50 transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)] active:shadow-none flex items-center justify-center gap-2 group"
             >
               <span>Start for free</span>
               <ArrowRight
@@ -1669,7 +1669,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/login"
-              className="w-full sm:w-auto border border-zinc-700 text-zinc-400 px-8 py-4 rounded-xl font-medium text-lg hover:border-zinc-500 hover:text-white transition-all text-center"
+              className="w-full sm:w-auto border border-zinc-700 text-zinc-400 px-8 py-4 rounded-xl font-medium text-lg hover:border-zinc-500 hover:text-white transition-all active:scale-[0.98] text-center"
             >
               Sign in
             </Link>
