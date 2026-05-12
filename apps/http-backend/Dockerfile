@@ -58,6 +58,11 @@ COPY --from=builder /app/apps/http-backend/dist       ./dist
 # package.json needed by some Node.js module resolution paths
 COPY --from=builder /app/apps/http-backend/package.json ./
 
+# Copy prisma schema and migrations for migrate deploy
+COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+
 # Non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 appuser && \
@@ -65,4 +70,4 @@ RUN addgroup --system --gid 1001 nodejs && \
 USER appuser
 
 EXPOSE 8000
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy --schema=packages/db/prisma/schema.prisma && node dist/server.js"]
