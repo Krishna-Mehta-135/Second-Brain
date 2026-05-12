@@ -67,4 +67,4 @@ RUN addgroup --system --gid 1001 nodejs && \
 USER appuser
 
 EXPOSE 8000
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=/app/packages/db/prisma/schema.prisma && node dist/server.js"]
