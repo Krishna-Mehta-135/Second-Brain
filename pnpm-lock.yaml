@@ -68,6 +68,9 @@ importers:
       nanoid:
         specifier: ^5.1.5
         version: 5.1.9
+      prisma:
+        specifier: ^7.8.0
+        version: 7.8.0(@types/react-dom@19.2.2(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.2)
       typescript:
         specifier: ^5.8.3
         version: 5.9.2
