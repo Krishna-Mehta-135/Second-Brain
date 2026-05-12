@@ -48,8 +48,9 @@ export default function DocumentPage() {
           setMetadata(data);
           const payload = data?.data || data;
           // If the document itself is public, allow viewing regardless of workspace membership.
-          // If the workspace is public, also allow viewing (AppShell will show Join button).
-          if (payload.isPublic || payload.workspace?.isPublic) {
+          // We no longer automatically allow access just because the workspace is public;
+          // the user must explicitly join the workspace to gain access to private documents.
+          if (payload.isPublic) {
             setHasAccess(true);
           } else {
             setHasAccess(false);

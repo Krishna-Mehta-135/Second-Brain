@@ -172,8 +172,18 @@ export function ShareModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md bg-[#0a0a0a]/90 border-white/10 text-white shadow-[0_0_80px_-15px_rgba(0,0,0,0.9),0_0_30px_-5px_hsla(var(--sb-accent-glow)/0.4)] rounded-[2.5rem] p-0 overflow-hidden backdrop-blur-2xl border-t-white/20 animate-in zoom-in-95 duration-300">
-        <div className="p-8 space-y-8">
+      <DialogContent
+        showCloseButton={false}
+        className="sm:max-w-md bg-[#0a0a0a]/95 border-white/10 text-white shadow-[0_0_80px_-15px_rgba(0,0,0,0.9),0_0_30px_-5px_hsla(var(--sb-accent-glow)/0.4)] rounded-[2.5rem] p-0 overflow-hidden backdrop-blur-2xl border-t-white/20 animate-in zoom-in-95 duration-300"
+      >
+        <div className="p-8 space-y-8 relative">
+          <button
+            onClick={onClose}
+            className="absolute top-8 right-8 p-2 rounded-xl bg-white/5 text-white/40 hover:text-white hover:bg-white/10 transition-all active:scale-90 z-10"
+          >
+            <XCircle size={20} />
+          </button>
+
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center gap-4">
               <div className="p-3 rounded-2xl bg-[hsl(var(--sb-accent))]/10 shadow-inner">
@@ -203,9 +213,6 @@ export function ShareModal({
                 <div>
                   <div className="text-sm font-bold flex items-center gap-2">
                     {isPublic ? "Public Workspace" : "Private Workspace"}
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/10 text-white/50 uppercase font-bold tracking-tighter">
-                      Workspace
-                    </span>
                   </div>
                   <div className="text-[11px] text-white/30 mt-0.5">
                     {isPublic
@@ -220,7 +227,7 @@ export function ShareModal({
                   size="sm"
                   onClick={handleTogglePrivacy}
                   disabled={isUpdatingPrivacy}
-                  className="h-9 px-5 rounded-xl text-[11px] font-bold uppercase tracking-wider border-white/10 hover:bg-white/10 text-white/70 hover:text-white transition-all active:scale-95 shadow-sm"
+                  className="h-9 px-5 rounded-xl text-[11px] font-bold uppercase tracking-wider border-white/20 bg-white/5 hover:bg-white/10 text-white transition-all active:scale-95 shadow-sm"
                 >
                   {isUpdatingPrivacy ? <LoadingSpinner size="sm" /> : "Change"}
                 </Button>
@@ -239,9 +246,6 @@ export function ShareModal({
                   <div>
                     <div className="text-sm font-bold flex items-center gap-2">
                       {docIsPublic ? "Public Document" : "Private Document"}
-                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/10 text-white/50 uppercase font-bold tracking-tighter">
-                        Document
-                      </span>
                     </div>
                     <div className="text-[11px] text-white/30 mt-0.5 truncate max-w-[160px]">
                       {docIsPublic
@@ -255,7 +259,7 @@ export function ShareModal({
                   size="sm"
                   onClick={handleToggleDocPrivacy}
                   disabled={isUpdatingDocPrivacy}
-                  className="h-9 px-5 rounded-xl text-[11px] font-bold uppercase tracking-wider border-white/10 hover:bg-white/10 text-white/70 hover:text-white transition-all active:scale-95 shadow-sm"
+                  className="h-9 px-5 rounded-xl text-[11px] font-bold uppercase tracking-wider border-white/20 bg-white/5 hover:bg-white/10 text-white transition-all active:scale-95 shadow-sm"
                 >
                   {isUpdatingDocPrivacy ? (
                     <LoadingSpinner size="sm" />

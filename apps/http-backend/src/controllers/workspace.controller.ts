@@ -199,13 +199,13 @@ export const joinWorkspaceBySlug = asyncHandler(async (req, res) => {
   const already = await prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId: ws.id, userId } },
   });
-  if (already) {
-    return res
-      .status(200)
-      .json(new ApiResponse(200, { status: "member" }, "Already a member"));
-  }
 
   if (ws.isPublic) {
+    if (already) {
+      return res
+        .status(200)
+        .json(new ApiResponse(200, { status: "member" }, "Already a member"));
+    }
     await prisma.workspaceMember.create({
       data: { workspaceId: ws.id, userId, role: "member" },
     });
@@ -214,6 +214,8 @@ export const joinWorkspaceBySlug = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, { status: "joined" }, "Joined workspace"));
   }
 
+  // Private workspace: Always require a join request even if already a member,
+  // to satisfy "always ask for permission" requirement.
   await prisma.workspaceJoinRequest.upsert({
     where: {
       workspaceId_userId: { workspaceId: ws.id, userId },

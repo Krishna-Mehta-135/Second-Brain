@@ -83,7 +83,7 @@ const getAllContent = asyncHandler(async (req: Request, res: Response) => {
 
 const createNewContent = asyncHandler(async (req: Request, res: Response) => {
   // Validate req.body
-  const validationResult = createContentSchema.safeParse(req.body);
+  const validationResult = createContentSchema.partial().safeParse(req.body);
   if (!validationResult.success) {
     return res
       .status(400)
@@ -100,7 +100,13 @@ const createNewContent = asyncHandler(async (req: Request, res: Response) => {
   if (!wid) {
     return res
       .status(400)
-      .json(new ApiResponse(400, null, "Workspace required — run bootstrap"));
+      .json(
+        new ApiResponse(
+          400,
+          null,
+          "Workspace required — please join or create a workspace first",
+        ),
+      );
   }
 
   // Ensure tags exist and map to connect query
@@ -118,9 +124,9 @@ const createNewContent = asyncHandler(async (req: Request, res: Response) => {
   // Create new content
   const newContent = await prisma.content.create({
     data: {
-      title,
-      link,
-      type,
+      title: title || "Untitled",
+      link: link || "https://internal.doc",
+      type: type || "document",
       userId,
       workspaceId: wid,
       folderPath: folderPath ?? "",
