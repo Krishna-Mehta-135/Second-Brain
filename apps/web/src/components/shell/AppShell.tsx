@@ -32,6 +32,7 @@ import {
   Globe,
   Lock,
   Folder,
+  UserPlus,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/useAuth";
@@ -54,7 +55,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  LoadingSpinner,
 } from "@repo/ui";
+import { ShareModal } from "./ShareModal";
 
 function normalizedDocTitle(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -73,12 +76,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isPending, startTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
   const [isMac, setIsMac] = useState(true);
-  const [shareCopied, setShareCopied] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [recentOpen, setRecentOpen] = useState(false);
   const [starredOpen, setStarredOpen] = useState(false);
   const [sidebarTagFilter, setSidebarTagFilter] = useState<string | null>(null);
   const [pendingJoinCount, setPendingJoinCount] = useState(0);
+  const lastNotificationCount = React.useRef(0);
+  const [showNotification, setShowNotification] = useState(false);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [docWorkspace, setDocWorkspace] = useState<{
+    id: string;
+    name: string;
+    slug: string;
+    isPublic: boolean;
+    ownerId: string;
+  } | null>(null);
 
   const auth = useAuth();
   const router = useRouter();
@@ -119,15 +132,55 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     activeWorkspaceId,
     setActiveWorkspaceId,
     activeWorkspace,
+    refresh: refreshWorkspaces,
   } = useWorkspace();
 
   const { starredIds, toggleStar, isStarred } = useStarredDocs();
   const { recentIds } = useRecentDocs();
   const { documents, createDocument } = useDocuments();
 
+  useEffect(() => {
+    if (!currentDocId || currentDocId === "new") {
+      setDocWorkspace(null);
+      return;
+    }
+
+    // Check if doc is in current documents cache
+    const doc = documents.find((d) => d.id === currentDocId);
+    if (doc && activeWorkspace) {
+      setDocWorkspace({
+        id: activeWorkspace.id,
+        name: activeWorkspace.name,
+        slug: activeWorkspace.slug,
+        isPublic: activeWorkspace.isPublic,
+        ownerId: activeWorkspace.ownerId,
+      });
+      return;
+    }
+
+    // Otherwise fetch metadata
+    fetch(`/api/documents/${currentDocId}/metadata`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.workspace) {
+          setDocWorkspace(data.data.workspace);
+        } else if (data?.workspace) {
+          setDocWorkspace(data.workspace);
+        }
+      })
+      .catch(() => setDocWorkspace(null));
+  }, [currentDocId, documents, activeWorkspace]);
+
+  const displayWorkspace = docWorkspace || activeWorkspace;
+
+  const isMember = useMemo(() => {
+    if (!displayWorkspace) return false;
+    return memberships.some((m) => m.workspace.id === displayWorkspace.id);
+  }, [memberships, displayWorkspace]);
+
   const isOwnerOfActive =
     memberships.find(
-      (m) => m.workspace.id === activeWorkspaceId && m.role === "owner",
+      (m) => m.workspace.id === displayWorkspace?.id && m.role === "owner",
     ) != null;
 
   // Resolve IDs to document objects
@@ -208,7 +261,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         );
         const j = await r.json().catch(() => ({}));
         const list = Array.isArray(j?.data) ? j.data : [];
-        if (!cancelled) setPendingJoinCount(list.length);
+        if (!cancelled) {
+          const count = list.length;
+          setPendingJoinCount(count);
+          if (count > lastNotificationCount.current) {
+            setShowNotification(true);
+            setTimeout(() => setShowNotification(false), 8000);
+          }
+          lastNotificationCount.current = count;
+        }
       } catch {
         if (!cancelled) setPendingJoinCount(0);
       }
@@ -265,11 +326,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleShare = useCallback(() => {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 2000);
-    });
+    setIsShareModalOpen(true);
   }, []);
+
+  const handleJoin = useCallback(async () => {
+    if (!displayWorkspace?.slug) return;
+    setIsJoining(true);
+    try {
+      const res = await fetch("/api/workspaces/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: displayWorkspace.slug }),
+      });
+      if (res.ok) {
+        await refreshWorkspaces();
+        // Option: show a success toast here
+      }
+    } catch (err) {
+      console.error("Failed to join workspace", err);
+    } finally {
+      setIsJoining(false);
+    }
+  }, [displayWorkspace?.slug, refreshWorkspaces]);
 
   const exportMarkdown = useCallback(() => {
     if (!currentDocId) return;
@@ -438,13 +516,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <span className="font-medium text-sm">
                   Create Untitled subfolder
                 </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => router.push("/workspace/join")}
-                className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-white/10 cursor-pointer focus:bg-white/10"
-              >
-                <Users size={15} className="text-[hsl(var(--sb-accent))]" />
-                <span className="font-medium text-sm">Join workspace</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => router.push("/settings/workspace")}
@@ -716,18 +787,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
               Online
             </div>
+
+            {!isMember && displayWorkspace && (
+              <button
+                onClick={handleJoin}
+                disabled={isJoining}
+                className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 rounded bg-[hsl(var(--sb-accent))] text-white hover:opacity-90 transition-all shadow-lg shadow-[hsl(var(--sb-accent))]/20 disabled:opacity-50"
+              >
+                {isJoining ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <>
+                    <UserPlus size={16} />
+                    <span>Join Workspace</span>
+                  </>
+                )}
+              </button>
+            )}
+
             <button
               onClick={handleShare}
-              className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-colors min-h-[32px] md:min-h-0"
+              className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-colors min-h-[32px] md:min-h-0 relative"
             >
-              {shareCopied ? (
-                <Check size={18} className="text-green-400 md:scale-125" />
-              ) : (
-                <Copy size={16} />
+              <Copy size={16} />
+              <span className="hidden sm:inline">Share</span>
+              {pendingJoinCount > 0 && isOwnerOfActive && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[hsl(var(--sb-accent))] rounded-full border-2 border-[hsl(var(--sb-bg-panel))]" />
               )}
-              <span className="hidden sm:inline">
-                {shareCopied ? "Copied!" : "Share"}
-              </span>
             </button>
             <button
               onClick={() => {
@@ -900,6 +986,49 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {displayWorkspace && (
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          workspaceId={displayWorkspace.id}
+          workspaceName={displayWorkspace.name}
+          workspaceSlug={displayWorkspace.slug}
+          isPublic={displayWorkspace.isPublic}
+          isOwner={isOwnerOfActive}
+          docId={currentDocId}
+          docTitle={currentDocTitle ?? undefined}
+          onPrivacyChange={() => {
+            // Optimistic update or refresh
+            void refreshWorkspaces();
+          }}
+        />
+      )}
+
+      {/* Notification Toast for Join Requests */}
+      {showNotification && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[hsl(var(--sb-accent))] text-white px-5 py-3 rounded-2xl shadow-2xl shadow-[hsl(var(--sb-accent))]/40 flex items-center gap-3 animate-in slide-in-from-bottom-4 duration-500 cursor-pointer hover:scale-105 transition-transform"
+          onClick={() => {
+            setIsShareModalOpen(true);
+            setShowNotification(false);
+          }}
+        >
+          <div className="bg-white/20 p-2 rounded-full">
+            <Users size={18} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold">New Join Request</span>
+            <span className="text-[11px] opacity-90">
+              {pendingJoinCount}{" "}
+              {pendingJoinCount === 1 ? "person wants" : "people want"} to join
+              your brain
+            </span>
+          </div>
+          <ChevronRight size={16} className="ml-2 opacity-50" />
         </div>
       )}
     </div>

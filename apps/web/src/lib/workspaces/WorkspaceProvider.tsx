@@ -72,18 +72,30 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       setMemberships(rows);
 
+      // Priority: 1. Query param 'ws' (slug), 2. LocalStorage, 3. First membership
+      const urlParams = new URLSearchParams(window.location.search);
+      const wsParam = urlParams.get("ws");
       const preferred =
         typeof window !== "undefined"
           ? localStorage.getItem(STORAGE_KEY)
           : null;
-      const firstId = rows[0]?.workspace?.id;
-      const pick =
-        preferred && rows.some((r) => r.workspace.id === preferred)
-          ? preferred
-          : (firstId ?? null);
-      setActiveWorkspaceIdState(pick);
-      if (pick && typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEY, pick);
+
+      let pickId = null;
+      if (wsParam) {
+        const found = rows.find((r) => r.workspace.slug === wsParam);
+        if (found) pickId = found.workspace.id;
+      }
+
+      if (!pickId) {
+        pickId =
+          preferred && rows.some((r) => r.workspace.id === preferred)
+            ? preferred
+            : (rows[0]?.workspace?.id ?? null);
+      }
+
+      setActiveWorkspaceIdState(pickId);
+      if (pickId && typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, pickId);
       }
     } finally {
       setIsLoading(false);

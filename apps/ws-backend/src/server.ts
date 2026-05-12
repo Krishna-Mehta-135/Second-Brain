@@ -486,6 +486,7 @@ function createUpgradeMiddleware(jwtSecret: string): UpgradeMiddleware {
         workspaceId: true,
         workspace: {
           select: {
+            isPublic: true,
             members: {
               where: { userId },
               select: { userId: true },
@@ -502,7 +503,8 @@ function createUpgradeMiddleware(jwtSecret: string): UpgradeMiddleware {
     if (content.userId !== userId) {
       if (content.workspaceId) {
         const isMember = (content.workspace?.members?.length ?? 0) > 0;
-        if (!isMember) {
+        const isPublic = content.workspace?.isPublic === true;
+        if (!isMember && !isPublic) {
           return {
             success: false,
             reason: "forbidden: not a workspace member",

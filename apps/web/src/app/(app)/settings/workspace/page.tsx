@@ -8,7 +8,6 @@ import {
   type FormEvent,
 } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft, Globe, Lock, Plus, UserPlus, Check, X } from "lucide-react";
 import { useWorkspace } from "@/lib/workspaces/WorkspaceProvider";
 import type { WorkspaceRecord } from "@repo/types";
@@ -273,7 +272,8 @@ export default function WorkspaceSettingsPage() {
                 Private workspaces require you to approve join requests (see
                 below). Share the{" "}
                 <span className="text-white/80 font-mono">{activeWs.slug}</span>{" "}
-                slug so others can request access.
+                slug so others can find and join via the &quot;Join&quot; button
+                in the topbar.
               </p>
             </div>
           </section>
@@ -367,14 +367,7 @@ export default function WorkspaceSettingsPage() {
             Public workspaces
           </h2>
           <p className="text-sm text-[hsl(var(--sb-text-muted))]">
-            Discover by slug on the{" "}
-            <Link
-              href="/workspace/join"
-              className="text-[hsl(var(--sb-accent))] hover:underline"
-            >
-              join page
-            </Link>
-            . Recent public workspaces:
+            Recent public workspaces:
           </p>
           <div className="rounded-xl border border-[hsl(var(--sb-border))] bg-[hsl(var(--sb-bg-panel))] divide-y divide-[hsl(var(--sb-border))] overflow-hidden">
             {publicList.length === 0 ? (
