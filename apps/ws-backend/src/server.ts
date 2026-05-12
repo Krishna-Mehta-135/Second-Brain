@@ -484,6 +484,7 @@ function createUpgradeMiddleware(jwtSecret: string): UpgradeMiddleware {
       select: {
         userId: true,
         workspaceId: true,
+        isPublic: true,
         workspace: {
           select: {
             isPublic: true,
@@ -501,18 +502,16 @@ function createUpgradeMiddleware(jwtSecret: string): UpgradeMiddleware {
     }
 
     if (content.userId !== userId) {
-      if (content.workspaceId) {
-        const isMember = (content.workspace?.members?.length ?? 0) > 0;
-        const isPublic = content.workspace?.isPublic === true;
-        if (!isMember && !isPublic) {
-          return {
-            success: false,
-            reason: "forbidden: not a workspace member",
-            httpCode: 403,
-          };
-        }
-      } else {
-        return { success: false, reason: "forbidden", httpCode: 403 };
+      const isPublicDoc = content.isPublic === true;
+      const isPublicWs = content.workspace?.isPublic === true;
+      const isMember = (content.workspace?.members?.length ?? 0) > 0;
+
+      if (!isMember && !isPublicDoc && !isPublicWs) {
+        return {
+          success: false,
+          reason: "forbidden: access denied",
+          httpCode: 403,
+        };
       }
     }
 

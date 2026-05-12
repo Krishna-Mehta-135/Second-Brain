@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Globe,
   Lock,
@@ -9,6 +9,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button, LoadingSpinner } from "@repo/ui";
+import { useWorkspace } from "@/lib/workspaces/WorkspaceProvider";
 
 interface WorkspaceMetadata {
   id: string;
@@ -31,6 +32,34 @@ export function JoinWorkspaceGate({
   const [status, setStatus] = useState<
     "idle" | "success" | "pending" | "error"
   >("idle");
+  const { memberships, refresh } = useWorkspace();
+
+  // Poll for membership changes when status is pending
+  useEffect(() => {
+    if (status !== "pending") return;
+
+    const interval = setInterval(async () => {
+      await refresh();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [status, refresh]);
+
+  // Check if we became a member during polling
+  useEffect(() => {
+    const isNowMember = memberships.some(
+      (m) => m.workspace.id === workspace.id,
+    );
+    if (isNowMember && status === "pending") {
+      setStatus("success");
+      if (typeof window !== "undefined") {
+        localStorage.setItem("knowdex:activeWorkspaceId", workspace.id);
+      }
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    }
+  }, [memberships, workspace.id, status]);
 
   const handleAction = async () => {
     setIsJoining(true);

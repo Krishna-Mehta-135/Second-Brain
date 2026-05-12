@@ -40,6 +40,7 @@ model Content {
   workspaceId String?
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   folderPath  String     @default("")
+  isPublic    Boolean    @default(false)
 }
 
 model Workspace {

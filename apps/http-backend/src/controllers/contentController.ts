@@ -12,6 +12,7 @@ const createContentSchema = z.object({
   tags: z.array(z.string()).optional().default([]),
   workspaceId: z.string().uuid().optional().nullable(),
   folderPath: z.string().max(512).optional().default(""),
+  isPublic: z.boolean().optional(),
 });
 
 async function workspaceIdFor(
@@ -235,6 +236,7 @@ const updateContent = asyncHandler(async (req: Request, res: Response) => {
       link: link ?? undefined,
       type: type ?? undefined,
       folderPath: folderPath ?? undefined,
+      isPublic: validationResult.data.isPublic ?? undefined,
       tags: tagConnects ? { set: tagConnects } : undefined,
     },
     include: { tags: { select: { id: true, name: true } } },
@@ -274,7 +276,9 @@ const getContentById = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (content.userId !== userId) {
-    if (content.workspaceId) {
+    if (content.isPublic) {
+      // Public document, allow access
+    } else if (content.workspaceId) {
       const isMember = content.workspace?.members.some(
         (m: { userId: string }) => m.userId === userId,
       );
@@ -311,12 +315,14 @@ const getContentMetadata = asyncHandler(async (req: Request, res: Response) => {
     select: {
       id: true,
       title: true,
+      isPublic: true,
       workspace: {
         select: {
           id: true,
           name: true,
           slug: true,
           isPublic: true,
+          ownerId: true,
         },
       },
     },

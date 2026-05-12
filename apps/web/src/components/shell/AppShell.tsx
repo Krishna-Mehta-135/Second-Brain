@@ -91,6 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     slug: string;
     isPublic: boolean;
     ownerId: string;
+    docIsPublic?: boolean;
   } | null>(null);
 
   const auth = useAuth();
@@ -162,10 +163,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     fetch(`/api/documents/${currentDocId}/metadata`)
       .then((res) => res.json())
       .then((data) => {
-        if (data?.data?.workspace) {
-          setDocWorkspace(data.data.workspace);
-        } else if (data?.workspace) {
-          setDocWorkspace(data.workspace);
+        const payload = data?.data || data;
+        if (payload?.workspace) {
+          setDocWorkspace({
+            ...payload.workspace,
+            docIsPublic: payload.isPublic,
+          });
         }
       })
       .catch(() => setDocWorkspace(null));
@@ -807,12 +810,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <button
               onClick={handleShare}
-              className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-colors min-h-[32px] md:min-h-0 relative"
+              className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm font-medium px-2 sm:px-3 py-1.5 rounded bg-[hsl(var(--sb-bg-panel))] border border-[hsl(var(--sb-border))] hover:border-[hsl(var(--sb-accent))] transition-all min-h-[32px] md:min-h-0 relative group shadow-sm hover:shadow-[0_0_15px_-5px_hsla(var(--sb-accent-glow)/0.4)]"
             >
-              <Copy size={16} />
-              <span className="hidden sm:inline">Share</span>
+              <Copy
+                size={16}
+                className="group-hover:text-[hsl(var(--sb-accent))] transition-colors"
+              />
+              <span className="hidden sm:inline group-hover:text-white transition-colors">
+                Share
+              </span>
               {pendingJoinCount > 0 && isOwnerOfActive && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[hsl(var(--sb-accent))] rounded-full border-2 border-[hsl(var(--sb-bg-panel))]" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-[hsl(var(--sb-accent))] rounded-full border-2 border-[hsl(var(--sb-bg-panel))] shadow-[0_0_10px_hsla(var(--sb-accent-glow)/0.6)] animate-pulse" />
               )}
             </button>
             <button
@@ -1001,9 +1009,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           isOwner={isOwnerOfActive}
           docId={currentDocId}
           docTitle={currentDocTitle ?? undefined}
+          docIsPublic={docWorkspace?.docIsPublic}
           onPrivacyChange={() => {
             // Optimistic update or refresh
             void refreshWorkspaces();
+          }}
+          onDocPrivacyChange={(isPublic) => {
+            setDocWorkspace((prev) =>
+              prev ? { ...prev, docIsPublic: isPublic } : null,
+            );
           }}
         />
       )}
@@ -1011,24 +1025,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Notification Toast for Join Requests */}
       {showNotification && (
         <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[hsl(var(--sb-accent))] text-white px-5 py-3 rounded-2xl shadow-2xl shadow-[hsl(var(--sb-accent))]/40 flex items-center gap-3 animate-in slide-in-from-bottom-4 duration-500 cursor-pointer hover:scale-105 transition-transform"
+          className="fixed bottom-8 right-8 z-[100] bg-[hsl(var(--sb-bg-panel))]/80 backdrop-blur-xl border border-[hsl(var(--sb-accent))]/30 text-white pl-1 pr-6 py-1 rounded-[1.5rem] shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5),0_0_20px_-5px_hsla(var(--sb-accent-glow)/0.3)] flex items-center gap-4 animate-in slide-in-from-right-8 fade-in duration-500 cursor-pointer hover:border-[hsl(var(--sb-accent))]/60 transition-all group"
           onClick={() => {
             setIsShareModalOpen(true);
             setShowNotification(false);
           }}
         >
-          <div className="bg-white/20 p-2 rounded-full">
-            <Users size={18} />
+          <div className="bg-[hsl(var(--sb-accent))] p-3 rounded-[1.2rem] shadow-lg shadow-[hsl(var(--sb-accent))]/20 group-hover:scale-110 transition-transform">
+            <Users size={20} className="text-white" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-bold">New Join Request</span>
-            <span className="text-[11px] opacity-90">
+          <div className="flex flex-col py-2">
+            <span className="text-sm font-bold tracking-tight">
+              New Join Request
+            </span>
+            <span className="text-[11px] text-white/50 font-medium">
               {pendingJoinCount}{" "}
-              {pendingJoinCount === 1 ? "person wants" : "people want"} to join
-              your brain
+              {pendingJoinCount === 1 ? "person wants" : "people want"} to join{" "}
+              {displayWorkspace?.name || "your brain"}
             </span>
           </div>
-          <ChevronRight size={16} className="ml-2 opacity-50" />
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNotification(false);
+              }}
+              className="p-1 hover:bg-white/10 rounded-full"
+            >
+              <Trash2 size={12} className="text-white/30" />
+            </button>
+          </div>
         </div>
       )}
     </div>
