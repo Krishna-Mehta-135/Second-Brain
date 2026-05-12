@@ -58,6 +58,24 @@ app.use("/api/v1/brain", brainRouter);
 app.use("/api/v1/documents", documentRouter);
 app.use("/api/v1/workspaces", workspaceRouter);
 
+// Global Error Handler
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    console.error("[Fatal Error]", err);
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      message: err.message || "Internal Server Error",
+      stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    });
+  },
+);
+
 // Catch-all for 404s
 app.use((req, res) => {
   console.log(`[404] Not Found: ${req.method} ${req.url}`);

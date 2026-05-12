@@ -81,9 +81,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(mapped);
   } catch (err) {
-    console.error("API Error:", err);
+    console.error("API GET Error:", err);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      {
+        error: "Internal Server Error",
+        message: err instanceof Error ? err.message : String(err),
+      },
       { status: 500 },
     );
   }
@@ -117,9 +120,13 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const errorJson = await res.json().catch(() => ({}));
-      console.error("Backend Error:", errorJson);
+      console.error("Backend POST Error:", errorJson);
       return NextResponse.json(
-        { error: "Failed to create", details: errorJson },
+        {
+          error: "Backend Error",
+          details: errorJson,
+          status: res.status,
+        },
         { status: res.status },
       );
     }
@@ -129,9 +136,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(mapDocument(d as BackendContent));
   } catch (err) {
-    console.error("API Error:", err);
+    console.error("API POST Error:", err);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      {
+        error: "Internal Server Error",
+        message: err instanceof Error ? err.message : String(err),
+      },
       { status: 500 },
     );
   }

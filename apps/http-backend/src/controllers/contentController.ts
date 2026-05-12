@@ -20,6 +20,13 @@ async function workspaceIdFor(
   requested: string | null | undefined,
 ) {
   if (requested) {
+    // Validate UUID format to prevent Prisma from throwing on malformed input
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        requested,
+      );
+    if (!isUuid) return null;
+
     const m = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: { workspaceId: requested, userId },
@@ -46,6 +53,17 @@ const getAllContent = asyncHandler(async (req: Request, res: Response) => {
 
   let content;
   if (qWid) {
+    // Validate UUID format
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        qWid,
+      );
+    if (!isUuid) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "Invalid workspaceId format"));
+    }
+
     const m = await prisma.workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId: qWid, userId } },
     });
@@ -55,25 +73,22 @@ const getAllContent = asyncHandler(async (req: Request, res: Response) => {
     content = await prisma.content.findMany({
       where: {
         workspaceId: qWid,
-        workspace: {
-          members: { some: { userId } },
-        },
       },
       include: { tags: { select: { id: true, name: true } } },
-      orderBy: { title: "asc" },
+      orderBy: { updatedAt: "desc" },
     });
   } else {
     content = await prisma.content.findMany({
       where: { userId },
       include: { tags: { select: { id: true, name: true } } },
-      orderBy: { title: "asc" },
+      orderBy: { updatedAt: "desc" },
     });
   }
 
   const mappedContent = content.map((c: any) => ({
     ...c,
     _id: c.id,
-    tags: c.tags.map((t: any) => ({ ...t, _id: t.id })),
+    tags: (c.tags || []).map((t: any) => ({ ...t, _id: t.id })),
   }));
 
   return res
@@ -113,10 +128,11 @@ const createNewContent = asyncHandler(async (req: Request, res: Response) => {
   const tagConnects = [];
   if (tags && tags.length > 0) {
     for (const tagName of tags) {
-      let tag = await prisma.tag.findUnique({ where: { name: tagName } });
-      if (!tag) {
-        tag = await prisma.tag.create({ data: { name: tagName } });
-      }
+      const tag = await prisma.tag.upsert({
+        where: { name: tagName },
+        create: { name: tagName },
+        update: {},
+      });
       tagConnects.push({ id: tag.id });
     }
   }
